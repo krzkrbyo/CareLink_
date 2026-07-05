@@ -43,6 +43,36 @@ export async function confirmMedication() {
   return { success: true };
 }
 
+export async function confirmRoutineActivity(activityId: string) {
+  const { elder, supabase } = await getElderContext();
+
+  const { data: reminder } = await supabase
+    .from("reminders")
+    .select("title")
+    .eq("id", activityId)
+    .eq("elder_id", elder.id)
+    .maybeSingle();
+
+  await supabase.from("interactions").insert({
+    elder_id: elder.id,
+    type: "meal_confirmed",
+    value: reminder?.title ? `Actividad: ${reminder.title}` : "Actividad completada",
+    metadata: { kind: "routine_activity", reminderId: activityId },
+  });
+
+  await supabase
+    .from("reminders")
+    .update({ status: "completed" })
+    .eq("id", activityId)
+    .eq("elder_id", elder.id)
+    .in("type", ["activity", "hydration"])
+    .eq("status", "pending");
+
+  await touchActivity(supabase, elder.id);
+  revalidateElder();
+  return { success: true };
+}
+
 export async function confirmMeal(mealLabel?: string) {
   const { elder, supabase } = await getElderContext();
 

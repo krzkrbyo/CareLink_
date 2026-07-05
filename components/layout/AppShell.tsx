@@ -32,6 +32,7 @@ interface NavLink {
   description: string;
   icon: typeof LayoutDashboard;
   match?: (pathname: string) => boolean;
+  mobileLabel?: string;
 }
 
 interface AppShellProps {
@@ -91,12 +92,14 @@ export function AppShell({
         {
           href: elderCarePath(activeElderSlug, "configuracion"),
           label: "Plan de cuidado",
+          mobileLabel: "Plan",
           description: "Medicamentos, citas y dieta",
           icon: ClipboardList,
         },
         {
           href: elderCarePath(activeElderSlug, "perfil"),
           label: "Perfil y ajustes",
+          mobileLabel: "Perfil",
           description: "Foto, datos y notificaciones",
           icon: UserCog,
           match: (p) => p.includes(elderCarePath(activeElderSlug, "perfil")),
@@ -107,6 +110,7 @@ export function AppShell({
   const caregiverAccountLink: NavLink = {
     href: "/configuracion",
     label: "Mi cuenta",
+    mobileLabel: "Cuenta",
     description: "Tu perfil como cuidador",
     icon: Settings,
     match: (p) => p.startsWith("/configuracion"),
@@ -369,37 +373,34 @@ export function AppShell({
           {role === "caregiver" && showMobileBottomNav && (
           <nav
             aria-label="Acceso rápido"
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-care-secondary/50 bg-white/95 px-1 py-2 backdrop-blur-sm lg:hidden"
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-care-secondary/50 bg-white/95 px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden"
           >
-            <div className="mx-auto flex max-w-lg justify-around gap-0.5">
+            <div
+              className="grid w-full gap-0.5"
+              style={{
+                gridTemplateColumns: `repeat(${mobileBottomLinks.length}, minmax(0, 1fr))`,
+              }}
+            >
               {mobileBottomLinks.map((link) => {
                 const Icon = link.icon;
                 const active = isActive(pathname, link.href, link.match);
-                const isElderContextLink =
-                  activeElder &&
-                  activeElderSlug &&
-                  link.href.startsWith(elderCarePath(activeElderSlug));
+                const label = link.mobileLabel ?? link.label;
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
+                    title={link.label}
                     className={cn(
-                      "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition-colors",
+                      "flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1.5 text-center transition-colors",
                       active
-                        ? "bg-care-accent/30 text-care-accent-darker"
+                        ? "bg-care-accent/25 text-care-accent-darker"
                         : "text-care-muted"
                     )}
                   >
-                    {isElderContextLink ? (
-                      <UserAvatar
-                        name={activeElder.full_name}
-                        avatarUrl={activeElder.avatar_url}
-                        size="sm"
-                      />
-                    ) : (
-                      <Icon className="h-5 w-5" />
-                    )}
-                    <span className="truncate">{link.label}</span>
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                    <span className="w-full truncate text-[10px] font-semibold leading-tight sm:text-[11px]">
+                      {label}
+                    </span>
                   </Link>
                 );
               })}

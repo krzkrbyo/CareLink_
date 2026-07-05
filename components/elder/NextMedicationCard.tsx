@@ -1,9 +1,10 @@
 "use client";
 
-import { CheckCircle2, Loader2, Pill } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBox } from "@/components/ui/icon-box";
 import type { ElderAgendaItem } from "@/lib/data/elder-care-plan";
+import { resolveCareIcon, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 import { cn } from "@/lib/utils";
 
 interface NextMedicationCardProps {
@@ -28,7 +29,7 @@ export function NextMedicationCard({
   if (doses.length === 0) {
     return (
       <article className="care-surface flex flex-col items-center justify-center p-6 text-center">
-        <IconBox icon={Pill} tone="muted" size="lg" />
+        <IconBox icon={resolveCareIcon(undefined, DEFAULT_CARE_ICONS.medication)} tone="muted" size="lg" />
         <p className="mt-4 text-lg font-semibold text-care-muted">
           No tiene medicamentos programados
         </p>
@@ -43,6 +44,7 @@ export function NextMedicationCard({
 
   const first = doses[0];
   const sameTime = doses.every((d) => d.sortKey === first.sortKey);
+  const DoseIcon = resolveCareIcon(first.icon, DEFAULT_CARE_ICONS.medication);
 
   return (
     <article
@@ -66,7 +68,7 @@ export function NextMedicationCard({
             </p>
           )}
         </div>
-        <IconBox icon={Pill} tone="accent" size="lg" />
+        <IconBox icon={DoseIcon} tone="accent" size="lg" />
       </div>
 
       <div className="space-y-3">

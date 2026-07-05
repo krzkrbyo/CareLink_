@@ -60,6 +60,7 @@ export interface Database {
           schedule: Json;
           calendar_export_enabled: boolean;
           active: boolean | null;
+          icon: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["medications"]["Row"]> & {
@@ -86,6 +87,7 @@ export interface Database {
           preparation_notes: string | null;
           duration_minutes: number | null;
           status: "scheduled" | "completed" | "cancelled" | "rescheduled" | null;
+          icon: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["appointments"]["Row"]> & {
@@ -146,6 +148,44 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["food_rules"]["Row"]>;
       };
+      routine_activities: {
+        Row: {
+          id: string;
+          elder_id: string;
+          title: string;
+          type: "activity" | "hydration";
+          message_text: string | null;
+          scheduled_time: string;
+          days_of_week: number[];
+          active: boolean;
+          icon: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["routine_activities"]["Row"]> & {
+          elder_id: string;
+          title: string;
+          type: "activity" | "hydration";
+        };
+        Update: Partial<Database["public"]["Tables"]["routine_activities"]["Row"]>;
+      };
+      meal_schedules: {
+        Row: {
+          id: string;
+          elder_id: string;
+          label: "Desayuno" | "Almuerzo" | "Merienda" | "Cena";
+          message_text: string | null;
+          scheduled_time: string;
+          days_of_week: number[];
+          active: boolean;
+          icon: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["meal_schedules"]["Row"]> & {
+          elder_id: string;
+          label: "Desayuno" | "Almuerzo" | "Merienda" | "Cena";
+        };
+        Update: Partial<Database["public"]["Tables"]["meal_schedules"]["Row"]>;
+      };
       reminders: {
         Row: {
           id: string;
@@ -158,6 +198,8 @@ export interface Database {
           due_at: string | null;
           status: "pending" | "completed" | "missed";
           appointment_id: string | null;
+          routine_activity_id: string | null;
+          meal_schedule_id: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["reminders"]["Row"]> & {
@@ -232,3 +274,5 @@ export type MedicalFacility = Database["public"]["Tables"]["medical_facilities"]
 export type MedicalProfessional = Database["public"]["Tables"]["medical_professionals"]["Row"];
 export type Medication = Database["public"]["Tables"]["medications"]["Row"];
 export type FoodRule = Database["public"]["Tables"]["food_rules"]["Row"];
+export type RoutineActivity = Database["public"]["Tables"]["routine_activities"]["Row"];
+export type MealSchedule = Database["public"]["Tables"]["meal_schedules"]["Row"];

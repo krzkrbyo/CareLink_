@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import {
   createAppointment,
   updateAppointment,
@@ -23,6 +23,12 @@ import {
   type MedicalCatalog,
 } from "@/lib/appointments/types";
 import type { Appointment } from "@/types/database";
+import { IconPicker } from "@/components/ui/icon-picker";
+import {
+  DEFAULT_CARE_ICONS,
+  normalizeCareIconKey,
+  type CareIconKey,
+} from "@/lib/icons/registry";
 import { Plus } from "lucide-react";
 
 interface AppointmentScheduleFormProps {
@@ -67,6 +73,19 @@ export function AppointmentScheduleForm({
   const [status, setStatus] = useState<AppointmentStatus>(
     (editing?.status as AppointmentStatus) ?? "scheduled"
   );
+  const [icon, setIcon] = useState<CareIconKey>(
+    normalizeCareIconKey(
+      editing?.icon,
+      (editing?.type ?? "cita") === "examen"
+        ? DEFAULT_CARE_ICONS.exam
+        : DEFAULT_CARE_ICONS.appointment
+    )
+  );
+
+  useEffect(() => {
+    if (editing) return;
+    setIcon(type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment);
+  }, [type, editing]);
 
   const [showNewFacility, setShowNewFacility] = useState(false);
   const [newFacilityName, setNewFacilityName] = useState("");
@@ -123,6 +142,7 @@ export function AppointmentScheduleForm({
       preparationNotes,
       durationMinutes: Number(durationMinutes) || 60,
       status,
+      icon,
     };
   }
 
@@ -230,11 +250,20 @@ export function AppointmentScheduleForm({
             <option value="examen">Examen</option>
           </Select>
 
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={type === "cita" ? "Título (opcional, se genera automático)" : "Título (opcional)"}
-          />
+          <div className="flex items-stretch gap-2">
+            <IconPicker
+              compact
+              context={type === "examen" ? "exam" : "appointment"}
+              value={icon}
+              onChange={setIcon}
+            />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={type === "cita" ? "Título (opcional, se genera automático)" : "Título (opcional)"}
+              className="min-w-0 flex-1"
+            />
+          </div>
 
           <FormField label="Fecha y hora">
             <Input

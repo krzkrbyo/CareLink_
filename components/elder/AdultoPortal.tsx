@@ -34,6 +34,7 @@ import { SectionHeader } from "@/components/layout/section-header";
 import {
   confirmMedication,
   confirmMeal,
+  confirmRoutineActivity,
   dailyCheckin,
   registerMood,
   requestHelp,
@@ -69,6 +70,12 @@ export function AdultoPortal({ elderName, carePlan }: AdultoPortalProps) {
       .map((m) => m.label);
     return new Set(done);
   });
+  const [confirmedActivities, setConfirmedActivities] = useState<Set<string>>(() => {
+    const done = carePlan.routineActivities
+      .filter((a) => a.status === "completed")
+      .map((a) => a.id);
+    return new Set(done);
+  });
 
   const featuredAppointments = getFeaturedAppointments(carePlan.appointments);
   const featuredDoses = getFeaturedMedicationDoses(carePlan);
@@ -95,6 +102,14 @@ export function AdultoPortal({ elderName, carePlan }: AdultoPortalProps) {
       () => confirmMeal(label),
       `${label} registrado correctamente`,
       () => setConfirmedMeals((prev) => new Set(prev).add(label))
+    );
+  }
+
+  function confirmActivity(id: string) {
+    act(
+      () => confirmRoutineActivity(id),
+      "Actividad registrada correctamente",
+      () => setConfirmedActivities((prev) => new Set(prev).add(id))
     );
   }
 
@@ -247,7 +262,12 @@ export function AdultoPortal({ elderName, carePlan }: AdultoPortalProps) {
               </div>
             </div>
 
-            <RoutineActivitiesList activities={carePlan.routineActivities} />
+            <RoutineActivitiesList
+              activities={carePlan.routineActivities}
+              onConfirm={confirmActivity}
+              loading={pending}
+              confirmedActivities={confirmedActivities}
+            />
           </div>
         );
 

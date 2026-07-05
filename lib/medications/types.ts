@@ -14,6 +14,7 @@ export interface MedicationScheduleInput {
   name: string;
   dose?: string;
   notes?: string;
+  icon?: string;
   startDate: string;
   endDate?: string | null;
   schedule: MedicationSchedule;

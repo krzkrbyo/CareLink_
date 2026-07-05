@@ -17,12 +17,12 @@ import {
   type AppointmentStatus,
 } from "@/lib/appointments/types";
 import type { Appointment } from "@/types/database";
+import { resolveCareIcon, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 import {
   CalendarClock,
   CalendarPlus,
   Pencil,
   Plus,
-  Stethoscope,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -107,7 +107,10 @@ export function AppointmentList({
       <div className="space-y-2">
         {filtered.map((appt) => {
           const status = (appt.status ?? "scheduled") as AppointmentStatus;
-          const Icon = appt.type === "examen" ? Stethoscope : CalendarClock;
+          const Icon = resolveCareIcon(
+            appt.icon,
+            appt.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment
+          );
 
           return (
             <Card

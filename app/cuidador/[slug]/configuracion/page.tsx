@@ -21,11 +21,15 @@ export default async function ConfiguracionPage({
     { data: medications },
     { data: appointments },
     { data: foodRules },
+    { data: routineActivities },
+    { data: mealSchedules },
     catalog,
   ] = await Promise.all([
     supabase.from("medications").select("*").eq("elder_id", elderId).order("created_at"),
     supabase.from("appointments").select("*").eq("elder_id", elderId).order("starts_at"),
     supabase.from("food_rules").select("*").eq("elder_id", elderId).order("created_at"),
+    supabase.from("routine_activities").select("*").eq("elder_id", elderId).order("created_at"),
+    supabase.from("meal_schedules").select("*").eq("elder_id", elderId).order("created_at"),
     getMedicalCatalog(elderId),
   ]);
 
@@ -33,7 +37,7 @@ export default async function ConfiguracionPage({
     <div className="p-4 pb-24 lg:p-8 lg:pb-8">
       <PageHeader
         title={`Plan de cuidado · ${elder?.full_name}`}
-        description="Configure medicamentos, citas médicas y reglas alimenticias. Los cambios se reflejan en el portal del adulto mayor y en las alertas."
+        description="Configure medicamentos, citas médicas, actividades de rutina y reglas alimenticias. Los cambios se reflejan en el portal del adulto mayor y en las alertas."
         breadcrumbs={[
           { label: "Mis personas", href: "/cuidador" },
           { label: elder?.full_name ?? "Plan", href: elderCarePath(slug, "dashboard") },
@@ -49,6 +53,8 @@ export default async function ConfiguracionPage({
         medications={medications ?? []}
         appointments={appointments ?? []}
         foodRules={foodRules ?? []}
+        routineActivities={routineActivities ?? []}
+        mealSchedules={mealSchedules ?? []}
         catalog={catalog}
       />
     </div>

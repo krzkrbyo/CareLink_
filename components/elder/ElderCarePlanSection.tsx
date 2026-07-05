@@ -2,8 +2,6 @@ import {
   CalendarClock,
   Clock,
   Info,
-  Pill,
-  Stethoscope,
 } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { IconBox } from "@/components/ui/icon-box";
@@ -13,6 +11,7 @@ import type {
   ElderFoodRuleView,
   ElderMedicationView,
 } from "@/lib/data/elder-care-plan";
+import { resolveCareIcon, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 import { FoodRulesGrid } from "@/components/elder/FoodRulesGrid";
 
 interface ElderCarePlanSectionProps {
@@ -55,7 +54,7 @@ export function ElderMedicationsList({ medications }: { medications: ElderMedica
   return (
     <div>
       <SectionHeader
-        icon={Pill}
+        icon={resolveCareIcon(undefined, DEFAULT_CARE_ICONS.medication)}
         title="Todos mis medicamentos"
         description="Nombre, horarios e indicaciones de cada medicamento."
       />
@@ -100,10 +99,11 @@ export function ElderFoodRulesList({ foodRules }: { foodRules: ElderFoodRuleView
 }
 
 function MedicationCard({ med }: { med: ElderMedicationView }) {
+  const MedIcon = resolveCareIcon(med.icon, DEFAULT_CARE_ICONS.medication);
   return (
     <article className="care-surface p-5">
       <div className="flex items-start gap-4">
-        <IconBox icon={Pill} tone="accent" size="lg" />
+        <IconBox icon={MedIcon} tone="accent" size="lg" />
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-bold text-care-foreground">{med.name}</h3>
           {med.dose && (
@@ -142,13 +142,17 @@ function MedicationCard({ med }: { med: ElderMedicationView }) {
 }
 
 function AppointmentCard({ appt }: { appt: ElderAppointmentView }) {
+  const ApptIcon = resolveCareIcon(
+    appt.icon,
+    appt.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment
+  );
   return (
     <article
       className={`care-surface p-5 ${appt.isToday ? "ring-2 ring-care-accent/40" : ""}`}
     >
       <div className="flex items-start gap-4">
         <IconBox
-          icon={appt.type === "examen" ? Stethoscope : CalendarClock}
+          icon={ApptIcon}
           tone={appt.type === "examen" ? "secondary" : "accent"}
           size="lg"
         />
@@ -211,7 +215,13 @@ function AgendaCard({
   item: ElderCarePlan["todayAgenda"][number];
   muted?: boolean;
 }) {
-  const Icon = item.kind === "medication" ? Pill : item.kind === "examen" ? Stethoscope : CalendarClock;
+  const fallback =
+    item.kind === "medication"
+      ? DEFAULT_CARE_ICONS.medication
+      : item.kind === "examen"
+        ? DEFAULT_CARE_ICONS.exam
+        : DEFAULT_CARE_ICONS.appointment;
+  const Icon = resolveCareIcon(item.icon, fallback);
 
   return (
     <article
