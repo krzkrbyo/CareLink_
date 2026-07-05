@@ -160,3 +160,43 @@ export async function notifyFamily() {
   revalidateElder();
   return { success: true };
 }
+
+export async function confirmPersonalReminder(reminderId: string) {
+  const { elder, supabase } = await getElderContext();
+
+  const { data: reminder } = await supabase
+    .from("reminders")
+    .select("id, title, type, caregiver_message_text")
+    .eq("id", reminderId)
+    .eq("elder_id", elder.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (
+    !reminder ||
+    (reminder.type !== "personal" &&
+      !(
+        reminder.type === "activity" &&
+        reminder.caregiver_message_text?.includes("pidió recordatorio por voz")
+      ))
+  ) {
+    return { success: false, error: "Recordatorio no encontrado" };
+  }
+
+  await supabase
+    .from("reminders")
+    .update({ status: "completed" })
+    .eq("id", reminderId)
+    .eq("elder_id", elder.id);
+
+  await supabase.from("interactions").insert({
+    elder_id: elder.id,
+    type: "reminder_completed",
+    value: reminder.title,
+    metadata: { reminderId },
+  });
+
+  await touchActivity(supabase, elder.id);
+  revalidateElder();
+  return { success: true };
+}

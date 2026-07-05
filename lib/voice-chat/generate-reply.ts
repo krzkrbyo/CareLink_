@@ -9,6 +9,13 @@ export interface VoiceChatReply {
   alertType: string;
   severity: "low" | "medium" | "high";
   source: "openai" | "fallback";
+  createReminder?: boolean;
+  reminder?: {
+    title: string;
+    timePhrase: string;
+    minutesFromNow: number;
+    dueAtLocal?: string;
+  };
 }
 
 export async function generateVoiceChatReply(
@@ -43,7 +50,7 @@ export async function generateVoiceChatReply(
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.5,
-    max_tokens: 180,
+    max_tokens: 240,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
@@ -62,13 +69,46 @@ export async function generateVoiceChatReply(
     suggestAlert?: boolean;
     alertType?: string;
     severity?: string;
+    createReminder?: boolean;
+    reminder?: {
+      title?: string;
+      timePhrase?: string;
+      dueAtLocal?: string;
+      minutesFromNow?: unknown;
+    };
   };
 
-  return {
+  const result: VoiceChatReply = {
     reply: parsed.reply,
     suggestAlert: parsed.suggestAlert ?? false,
     alertType: parsed.alertType ?? "none",
     severity: (parsed.severity as VoiceChatReply["severity"]) ?? "low",
     source: "openai",
   };
+
+  if (parsed.createReminder != null && parsed.reminder?.title) {
+    const minutes = parsed.reminder.minutesFromNow;
+    const hasMinutes =
+      minutes != null &&
+      (typeof minutes === "number" || (typeof minutes === "string" && minutes.trim() !== ""));
+
+    if (
+      parsed.createReminder === true ||
+      parsed.createReminder === "true" ||
+      parsed.createReminder === 1
+    ) {
+      if (hasMinutes || parsed.reminder.dueAtLocal) {
+        result.createReminder = true;
+        result.reminder = {
+          title: parsed.reminder.title,
+          timePhrase: parsed.reminder.timePhrase ?? "",
+          dueAtLocal: parsed.reminder.dueAtLocal,
+          minutesFromNow:
+            typeof minutes === "number" ? minutes : Number.parseInt(String(minutes ?? "60"), 10),
+        };
+      }
+    }
+  }
+
+  return result;
 }

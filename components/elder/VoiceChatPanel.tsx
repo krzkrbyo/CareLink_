@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { VoiceChatAvatar } from "@/components/elder/VoiceChatAvatar";
 import { useVoiceChat } from "@/components/elder/voice-chat-context";
 import { cn } from "@/lib/utils";
+import { VOICE_COMPANION_NAME } from "@/lib/voice-chat/constants";
 
 interface VoiceChatPanelProps {
   variant?: "embedded" | "floating";
@@ -46,8 +47,8 @@ export function VoiceChatPanel({ variant = "embedded", onClose }: VoiceChatPanel
     >
       <div className="flex items-center justify-between border-b border-care-secondary/50 bg-care-primary/40 px-4 py-3">
         <div>
-          <h3 className="text-lg font-bold text-care-foreground">Su tortuguita CareLink</h3>
-          <p className="text-sm text-care-muted">Acompañante de voz</p>
+          <h3 className="text-lg font-bold text-care-foreground">{VOICE_COMPANION_NAME}</h3>
+          <p className="text-sm text-care-muted">Su acompañante de voz de CareLink</p>
         </div>
         {variant === "floating" && onClose && (
           <button
@@ -86,7 +87,7 @@ export function VoiceChatPanel({ variant = "embedded", onClose }: VoiceChatPanel
               )}
             >
               <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide opacity-75">
-                {msg.role === "user" ? "Usted" : "Tortuguita"}
+                {msg.role === "user" ? "Usted" : VOICE_COMPANION_NAME}
               </p>
               <p>{msg.content}</p>
             </div>

@@ -4,6 +4,7 @@ import { VoiceChatAvatar } from "@/components/elder/VoiceChatAvatar";
 import { VoiceChatPanel } from "@/components/elder/VoiceChatPanel";
 import { useVoiceChat } from "@/components/elder/voice-chat-context";
 import { cn } from "@/lib/utils";
+import { VOICE_COMPANION_NAME } from "@/lib/voice-chat/constants";
 
 export function VoiceChatFloating() {
   const { isOpen, setOpen, toggleOpen, status, embeddedPanelVisible } = useVoiceChat();
@@ -32,7 +33,7 @@ export function VoiceChatFloating() {
         <button
           type="button"
           onClick={toggleOpen}
-          aria-label={isOpen ? "Cerrar acompañante" : "Abrir acompañante de voz"}
+          aria-label={isOpen ? `Cerrar ${VOICE_COMPANION_NAME}` : `Abrir ${VOICE_COMPANION_NAME}`}
           className={cn(
             "relative h-16 w-16 overflow-hidden rounded-full shadow-lg transition-transform active:scale-95",
             isOpen && "ring-4 ring-care-accent/40",
@@ -41,7 +42,7 @@ export function VoiceChatFloating() {
         >
           <VoiceChatAvatar status={status} variant="fab" playback={fabPlayback} />
           <span className="sr-only">
-            {isOpen ? "Cerrar tortuguita acompañante" : "Abrir tortuguita acompañante"}
+            {isOpen ? `Cerrar ${VOICE_COMPANION_NAME}` : `Abrir ${VOICE_COMPANION_NAME}`}
           </span>
         </button>
       </div>

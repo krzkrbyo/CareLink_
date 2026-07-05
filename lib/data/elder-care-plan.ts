@@ -8,6 +8,13 @@ import {
   parseMedicationSchedule,
 } from "@/lib/medications/schedule";
 import { EXAM_SUBTYPE_LABELS } from "@/lib/appointments/types";
+import {
+  buildReminderDisplayTitle,
+  extractTimePhraseFromCaregiverMessage,
+  formatDateLabelMexicoCity,
+  formatSpokenTimeMexico,
+  formatTimeMexicoCity,
+} from "@/lib/time/mexico-city";
 import type { Appointment, FoodRule, Medication } from "@/types/database";
 
 export interface ElderMedicationView {
@@ -80,6 +87,18 @@ export interface ElderRoutineView {
   message: string | null;
 }
 
+export interface ElderPersonalReminderView {
+  id: string;
+  title: string;
+  timePhrase: string;
+  displayTitle: string;
+  timeLabel: string;
+  dateLabel: string;
+  dueAt: string;
+  status: "pending" | "completed" | "missed";
+  message: string | null;
+}
+
 export interface ElderCarePlan {
   medications: ElderMedicationView[];
   appointments: ElderAppointmentView[];
@@ -88,6 +107,7 @@ export interface ElderCarePlan {
   featuredMedicationDoses: ElderAgendaItem[];
   meals: ElderMealView[];
   routineActivities: ElderRoutineView[];
+  personalReminders: ElderPersonalReminderView[];
 }
 
 const FOOD_TYPE_LABELS: Record<FoodRule["type"], string> = {
@@ -285,10 +305,19 @@ function buildMealViews(
 }
 
 function buildRoutineViews(
-  reminders: { id: string; title: string; due_at: string | null; status: string; message_text: string | null; type: string }[]
+  reminders: {
+    id: string;
+    title: string;
+    due_at: string | null;
+    status: string;
+    message_text: string | null;
+    type: string;
+    caregiver_message_text?: string | null;
+  }[]
 ): ElderRoutineView[] {
   return reminders
     .filter((r) => r.type === "activity" || r.type === "hydration")
+    .filter((r) => !isVoicePersonalReminder(r))
     .sort((a, b) => {
       const ta = a.due_at ? new Date(a.due_at).getTime() : 0;
       const tb = b.due_at ? new Date(b.due_at).getTime() : 0;
@@ -302,6 +331,55 @@ function buildRoutineViews(
         timeLabel: due.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
         dueAt: r.due_at ?? new Date().toISOString(),
         status: r.status as ElderRoutineView["status"],
+        message: r.message_text,
+      };
+    });
+}
+
+function isVoicePersonalReminder(r: {
+  type: string;
+  caregiver_message_text?: string | null;
+}): boolean {
+  return (
+    r.type === "personal" ||
+    (r.type === "activity" &&
+      Boolean(r.caregiver_message_text?.includes("pidió recordatorio por voz")))
+  );
+}
+
+function buildPersonalReminderViews(
+  reminders: {
+    id: string;
+    title: string;
+    due_at: string | null;
+    status: string;
+    message_text: string | null;
+    type: string;
+    caregiver_message_text?: string | null;
+  }[],
+  now: Date
+): ElderPersonalReminderView[] {
+  return reminders
+    .filter(isVoicePersonalReminder)
+    .sort((a, b) => {
+      const ta = a.due_at ? new Date(a.due_at).getTime() : 0;
+      const tb = b.due_at ? new Date(b.due_at).getTime() : 0;
+      return ta - tb;
+    })
+    .map((r) => {
+      const due = r.due_at ? new Date(r.due_at) : now;
+      const timePhrase =
+        extractTimePhraseFromCaregiverMessage(r.caregiver_message_text) ??
+        formatSpokenTimeMexico(due);
+      return {
+        id: r.id,
+        title: r.title,
+        timePhrase,
+        displayTitle: buildReminderDisplayTitle(r.title, timePhrase),
+        timeLabel: formatTimeMexicoCity(due),
+        dateLabel: formatDateLabelMexicoCity(due, now),
+        dueAt: r.due_at ?? now.toISOString(),
+        status: r.status as ElderPersonalReminderView["status"],
         message: r.message_text,
       };
     });
@@ -341,9 +419,9 @@ export async function fetchElderCarePlan(
         .order("created_at"),
       supabase
         .from("reminders")
-        .select("id, title, type, due_at, status, message_text")
+        .select("id, title, type, due_at, status, message_text, caregiver_message_text")
         .eq("elder_id", elderId)
-        .in("type", ["meal", "activity", "hydration"])
+        .in("type", ["meal", "activity", "hydration", "personal"])
         .order("due_at"),
     ]);
 
@@ -412,5 +490,6 @@ export async function fetchElderCarePlan(
     featuredMedicationDoses: buildFeaturedMedicationDoses(activeMeds as Medication[], now),
     meals: buildMealViews(reminders ?? [], now),
     routineActivities: buildRoutineViews(reminders ?? []),
+    personalReminders: buildPersonalReminderViews(reminders ?? [], now),
   };
 }

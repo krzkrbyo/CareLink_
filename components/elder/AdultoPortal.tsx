@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   HeartHandshake,
   MessageCircleHeart,
+  Bell,
   Pill,
   Salad,
   SmilePlus,
@@ -25,6 +26,7 @@ import { MoodSelector } from "@/components/elder/MoodSelector";
 import { NextAppointmentCard } from "@/components/elder/NextAppointmentCard";
 import { NextMedicationCard } from "@/components/elder/NextMedicationCard";
 import { VoiceChatCompanion } from "@/components/elder/VoiceChatCompanion";
+import { PersonalRemindersList } from "@/components/elder/PersonalRemindersList";
 import { ReminderPlayer } from "@/components/elder/ReminderPlayer";
 import { RoutineActivitiesList } from "@/components/elder/RoutineActivitiesList";
 import { PageHeader } from "@/components/layout/page-header";
@@ -45,6 +47,7 @@ import {
   hasMoreMedications,
 } from "@/lib/data/elder-care-plan-helpers";
 import { elderSectionHref, parseElderSection } from "@/lib/elder-nav";
+import { VOICE_COMPANION_NAME } from "@/lib/voice-chat/constants";
 
 interface AdultoPortalProps {
   elderName: string;
@@ -174,10 +177,22 @@ export function AdultoPortal({ elderName, carePlan }: AdultoPortalProps) {
           <div className="space-y-6">
             <SectionHeader
               icon={MessageCircleHeart}
-              title="Su tortuguita acompañante"
-              description="Hable con su tortuguita de CareLink. Escuchará su voz, le responderá por escrito y con audio."
+              title={VOICE_COMPANION_NAME}
+              description={`Hable con ${VOICE_COMPANION_NAME}, su acompañante de CareLink. Puede pedirle recordatorios diciendo, por ejemplo: "recuérdame llamar a mi hija a las cuatro".`}
             />
             <VoiceChatCompanion elderName={elderName} />
+          </div>
+        );
+
+      case "recordatorios":
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              icon={Bell}
+              title="Mis recordatorios"
+              description="Recordatorios que usted crea hablando con Link. Aparecen aquí automáticamente."
+            />
+            <PersonalRemindersList reminders={carePlan.personalReminders} />
           </div>
         );
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getElderForApi, unauthorizedResponse } from "@/lib/auth/require-elder-api";
 import { hasOpenAI } from "@/lib/openai/client";
@@ -13,6 +14,12 @@ import {
 import { generateVoiceChatReply } from "@/lib/voice-chat/generate-reply";
 import { loadElderChatContext } from "@/lib/voice-chat/elder-context";
 import { logVoiceChatTurn } from "@/lib/voice-chat/log-turn";
+import {
+  createPersonalReminderFromVoice,
+  extractReminderIntentFromSpeech,
+  looksLikeReminderRequest,
+  resolveReminderIntent,
+} from "@/lib/voice-chat/create-personal-reminder";
 
 const historySchema = z.array(
   z.object({
@@ -79,6 +86,45 @@ export async function POST(req: NextRequest) {
     dayContext
   );
 
+  let reminderCreated: {
+    id: string;
+    title: string;
+    timeLabel: string;
+  } | null = null;
+  let reminderError: string | null = null;
+
+  const shouldTryReminder =
+    chatResult.createReminder || looksLikeReminderRequest(userText);
+
+  if (shouldTryReminder) {
+    const extracted = looksLikeReminderRequest(userText)
+      ? await extractReminderIntentFromSpeech(userText, dayContext)
+      : null;
+
+    const intent = resolveReminderIntent(chatResult, userText, extracted);
+
+    if (intent) {
+      const created = await createPersonalReminderFromVoice(
+        elder.id,
+        elder.full_name,
+        intent,
+        { useAdmin: true }
+      );
+
+      if (created.success && created.reminderId && created.title && created.timeLabel) {
+        reminderCreated = {
+          id: created.reminderId,
+          title: created.title,
+          timeLabel: created.timeLabel,
+        };
+        revalidatePath("/adulto");
+      } else {
+        reminderError = created.error ?? "No se pudo guardar el recordatorio";
+        console.error("[voice-chat/turn] reminder failed:", reminderError);
+      }
+    }
+  }
+
   const speech = await generateSpeech(chatResult.reply);
   if ("error" in speech) {
     return NextResponse.json(
@@ -87,7 +133,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  void logVoiceChatTurn(elder.id, elder.full_name, userText, chatResult).catch(
+  void logVoiceChatTurn(elder.id, elder.full_name, userText, chatResult, reminderCreated).catch(
     console.error
   );
 
@@ -100,5 +146,7 @@ export async function POST(req: NextRequest) {
     ttsSource: "elevenlabs",
     chatSource: chatResult.source,
     suggestAlert: chatResult.suggestAlert,
+    reminderCreated,
+    reminderError,
   });
 }

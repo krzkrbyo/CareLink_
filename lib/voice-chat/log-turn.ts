@@ -5,16 +5,22 @@ export async function logVoiceChatTurn(
   elderId: string,
   elderName: string,
   userMessage: string,
-  result: VoiceChatReply
+  result: VoiceChatReply,
+  reminderCreated?: { id: string; title: string; timeLabel: string } | null
 ) {
   const supabase = await createClient();
+
+  const metadata: Record<string, unknown> = { reply: result.reply.slice(0, 500) };
+  if (reminderCreated) {
+    metadata.reminderCreated = reminderCreated;
+  }
 
   await Promise.all([
     supabase.from("interactions").insert({
       elder_id: elderId,
       type: "voice_message",
       value: userMessage.slice(0, 500),
-      metadata: { reply: result.reply.slice(0, 500) },
+      metadata,
     }),
     supabase
       .from("elders")

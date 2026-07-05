@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   CalendarClock,
   Home,
+  Bell,
   MessageCircle,
   MessageCircleHeart,
   Pill,
@@ -40,7 +41,8 @@ export const ELDER_NAV_GROUPS: ElderNavGroup[] = [
   {
     label: "Mi día",
     items: [
-      { id: "acompanante", label: "Acompañante", icon: MessageCircle },
+      { id: "acompanante", label: "Link", icon: MessageCircle },
+      { id: "recordatorios", label: "Recordatorios", icon: Bell },
       { id: "rutina", label: "Rutina", icon: Volume2 },
       { id: "bienestar", label: "Bienestar", icon: SmilePlus },
       { id: "familia", label: "Familia", icon: MessageCircleHeart },

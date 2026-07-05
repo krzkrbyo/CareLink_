@@ -84,6 +84,32 @@ export function formatElderChatContext(
     sections.push(`Actividades de rutina: ${activities}.`);
   }
 
+  if (plan.personalReminders.length) {
+    const pending = plan.personalReminders.filter((r) => r.status === "pending");
+    if (pending.length) {
+      const items = pending
+        .map((r) => {
+          const due = new Date(r.dueAt);
+          const suffix = isUpcoming(due, now)
+            ? ` (${formatRelativeUntil(due, now)})`
+            : r.status === "completed"
+              ? " (completado)"
+              : " (ya pasó)";
+          return `${r.displayTitle}${suffix}`;
+        })
+        .join("; ");
+      sections.push(`Recordatorios personales (puede agregar más pidiéndoselo a Link): ${items}.`);
+    } else {
+      sections.push(
+        "Recordatorios personales: ninguno pendiente. Puede pedirle a Link que le recuerde algo."
+      );
+    }
+  } else {
+    sections.push(
+      "Recordatorios personales: ninguno aún. Puede decirle a Link, por ejemplo: recuérdame llamar a mi hija a las cuatro."
+    );
+  }
+
   const family: string[] = [];
   if (elder.main_caregiver_name) {
     family.push(`su cuidador/a principal es ${elder.main_caregiver_name}`);

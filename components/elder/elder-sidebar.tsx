@@ -66,7 +66,7 @@ interface ElderMobileBottomNavProps {
 export function ElderMobileBottomNav({ onNavigate }: ElderMobileBottomNavProps) {
   const searchParams = useSearchParams();
   const activeId = parseElderSection(searchParams.get("seccion"));
-  const primaryIds = ["inicio", "acompanante", "medicamentos", "rutina"];
+  const primaryIds = ["inicio", "acompanante", "recordatorios", "medicamentos"];
   const items = ELDER_NAV_GROUPS.flatMap((g) => g.items).filter((item) =>
     primaryIds.includes(item.id)
   );

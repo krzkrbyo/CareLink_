@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Heart } from "lucide-react";
+import { ArrowLeft, Heart } from "lucide-react";
 import { signIn } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,14 @@ export default function LoginForm() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center care-gradient-page p-4">
-      <Card className="w-full max-w-md shadow-lg">
+      <div className="w-full max-w-md">
+        <Button asChild variant="ghost" className="mb-4 h-11 gap-2 text-base text-care-muted">
+          <Link href="/">
+            <ArrowLeft className="h-4 w-4" />
+            Volver al inicio
+          </Link>
+        </Button>
+        <Card className="shadow-lg">
         <CardHeader className="text-center">
           <IconBox icon={Heart} tone="accent" size="xl" className="mx-auto mb-3" />
           <CardTitle className="text-3xl">CareLink</CardTitle>
@@ -79,6 +86,7 @@ export default function LoginForm() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </main>
   );
 }

@@ -9,7 +9,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { playBase64Audio } from "@/lib/voice-chat/play-audio";
+import { getVoiceCompanionWelcomeMessage, VOICE_COMPANION_NAME } from "@/lib/voice-chat/constants";
+import { looksLikeReminderRequest } from "@/lib/voice-chat/reminder-intent";
 
 export type ChatRole = "user" | "assistant";
 export type ChatStatus = "idle" | "recording" | "processing" | "speaking";
@@ -44,10 +47,10 @@ function getRecorderMimeType(): string | undefined {
 }
 
 const STATUS_LABELS: Record<ChatStatus, string> = {
-  idle: "Presione para hablar con su tortuguita",
+  idle: `Presione para hablar con ${VOICE_COMPANION_NAME}`,
   recording: "Escuchando… Toque para enviar",
-  processing: "Su tortuguita está pensando…",
-  speaking: "Su tortuguita le está respondiendo…",
+  processing: `${VOICE_COMPANION_NAME} está pensando…`,
+  speaking: `${VOICE_COMPANION_NAME} le está respondiendo…`,
 };
 
 export function VoiceChatProvider({
@@ -57,12 +60,12 @@ export function VoiceChatProvider({
   elderName: string;
   children: ReactNode;
 }) {
-  const firstName = elderName.split(" ")[0];
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: `Hola, ${firstName}. Soy su tortuguita de CareLink. Presione el micrófono y hable conmigo.`,
+      content: getVoiceCompanionWelcomeMessage(elderName),
     },
   ]);
   const [status, setStatus] = useState<ChatStatus>("idle");
@@ -128,11 +131,17 @@ export function VoiceChatProvider({
       addMessage("user", data.userText as string);
       addMessage("assistant", data.reply as string);
 
+      if (data.reminderCreated) {
+        router.refresh();
+      } else if (data.reminderError && looksLikeReminderRequest(data.userText as string)) {
+        setError("No pude guardar el recordatorio. Intente de nuevo en un momento.");
+      }
+
       setStatus("speaking");
       await playBase64Audio(data.audioBase64 as string, data.audioMimeType as string);
       setStatus("idle");
     },
-    [addMessage]
+    [addMessage, router]
   );
 
   const startRecording = useCallback(async () => {
