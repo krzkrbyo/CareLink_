@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CareLinkLogoMark } from "@/components/brand/CareLinkLogo";
 import {
   LayoutDashboard,
   ClipboardList,
   Users,
   LogOut,
-  Heart,
   Menu,
   X,
   ChevronRight,
@@ -154,13 +154,7 @@ export function AppShell({
   const NavContent = () => (
     <div className="flex min-h-full flex-1 flex-col">
       <div className="mb-6 flex items-center gap-3 px-2">
-        {role === "caregiver" ? (
-          <Link href="/configuracion" onClick={() => setMobileOpen(false)}>
-            <UserAvatar name={userName} avatarUrl={avatarUrl} size="md" />
-          </Link>
-        ) : (
-          <UserAvatar name={userName} avatarUrl={avatarUrl} size="md" />
-        )}
+        <CareLinkLogoMark size="sm" />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-care-foreground">CareLink</p>
           {role === "caregiver" ? (
@@ -328,7 +322,7 @@ export function AppShell({
               size="sm"
             />
           ) : (
-            <Heart className="h-6 w-6 shrink-0 text-care-accent-dark" />
+            <CareLinkLogoMark size="sm" />
           )}
           <div className="min-w-0">
             <span className="block truncate font-bold text-care-foreground">CareLink</span>

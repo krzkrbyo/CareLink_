@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
 import { signUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
-import { IconBox } from "@/components/ui/icon-box";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { CareLinkLogoMark } from "@/components/brand/CareLinkLogo";
 
 export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +28,7 @@ export default function SignUpPage() {
     <main className="flex min-h-dvh items-center justify-center care-gradient-page p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
-          <IconBox icon={UserPlus} tone="accent" size="xl" className="mx-auto mb-3" />
+          <CareLinkLogoMark size="xl" className="mx-auto mb-3" />
           <CardTitle className="text-3xl">Crear cuenta</CardTitle>
           <p className="text-care-muted">Únete a CareLink</p>
         </CardHeader>

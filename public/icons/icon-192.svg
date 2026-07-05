@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="40" fill="#c5b3d3"/>
-  <path d="M96 140s-40-26-40-58a28 28 0 0 1 56 0c0 32-40 58-40 58z" fill="#fbefef"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none" role="img" aria-label="CareLink">
+  <rect width="192" height="192" rx="42" fill="#9b87b5"/>
+  <path
+    fill="#ffffff"
+    d="M96 151.2c-1.8 0-3.6-.6-4.8-1.8C57 119.4 36 99 36 73.2 36 55.2 50.4 40.8 68.4 40.8c10.8 0 21 5.4 27.6 13.8 6.6-8.4 16.8-13.8 27.6-13.8 18 0 32.4 14.4 32.4 32.4 0 25.8-21 46.2-55.2 76.2-1.2 1.2-3 1.8-4.8 1.8z"
+  />
 </svg>
