@@ -1,0 +1,18 @@
+{
+  "name": "CareLink",
+  "short_name": "CareLink",
+  "description": "Acompañamiento con cariño para adultos mayores",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbefef",
+  "theme_color": "#c5b3d3",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "CareLink - Help Alert",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "carelink-help" },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CARELINK_APP_URL}}/api/n8n/alert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-n8n-secret", "value": "={{$env.N8N_WEBHOOK_SECRET}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"elderId\":\"00000000-0000-4000-8000-000000000001\",\"type\":\"help_requested\",\"severity\":\"high\",\"message\":\"Don Manuel presionó Necesito ayuda.\"}"
+      },
+      "name": "Forward Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Forward Alert", "type": "main", "index": 0 }]] }
+  }
+}
