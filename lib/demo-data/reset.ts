@@ -64,6 +64,8 @@ export async function resetDemoData() {
   await admin.from("alerts").delete().eq("elder_id", elderId);
   await admin.from("interactions").delete().eq("elder_id", elderId);
   await admin.from("reminders").delete().eq("elder_id", elderId);
+  await admin.from("routine_activities").delete().eq("elder_id", elderId);
+  await admin.from("meal_schedules").delete().eq("elder_id", elderId);
   await admin.from("food_rules").delete().eq("elder_id", elderId);
   await admin.from("appointments").delete().eq("elder_id", elderId);
   await admin.from("medical_professionals").delete().eq("elder_id", elderId);
@@ -106,6 +108,7 @@ export async function resetDemoData() {
       },
       calendar_export_enabled: true,
       active: true,
+      icon: "pill",
     },
     {
       elder_id: elderId,
@@ -123,6 +126,7 @@ export async function resetDemoData() {
       },
       calendar_export_enabled: true,
       active: true,
+      icon: "heart-pulse",
     },
     {
       elder_id: elderId,
@@ -140,6 +144,7 @@ export async function resetDemoData() {
       },
       calendar_export_enabled: true,
       active: true,
+      icon: "tablet",
     },
   ]);
 
@@ -294,6 +299,93 @@ export async function resetDemoData() {
     },
   ]);
 
+  const { data: routineActivities } = await admin
+    .from("routine_activities")
+    .insert([
+      {
+        elder_id: elderId,
+        title: "Caminata suave",
+        type: "activity",
+        message_text: "15 minutos de caminata tranquila en casa o en el jardín.",
+        scheduled_time: "10:00:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "footprints",
+      },
+      {
+        elder_id: elderId,
+        title: "Ejercicios de equilibrio",
+        type: "activity",
+        message_text: "Estiramientos suaves y ejercicios de equilibrio durante 10 minutos.",
+        scheduled_time: "11:30:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "dumbbell",
+      },
+      {
+        elder_id: elderId,
+        title: "Beber agua",
+        type: "hydration",
+        message_text: "Recuerde tomar un vaso de agua. La hidratación ayuda a la presión.",
+        scheduled_time: "12:00:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "droplets",
+      },
+      {
+        elder_id: elderId,
+        title: "Lectura o pasatiempo",
+        type: "activity",
+        message_text: "Dedique un rato a leer o a una actividad que disfrute.",
+        scheduled_time: "16:00:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "book-open",
+      },
+    ])
+    .select("id, title, type, message_text, scheduled_time");
+
+  const routineByTitle = new Map(routineActivities?.map((a) => [a.title, a.id]) ?? []);
+
+  const { data: mealSchedules } = await admin
+    .from("meal_schedules")
+    .insert([
+      {
+        elder_id: elderId,
+        label: "Desayuno",
+        message_text:
+          "Buenos días, Don Manuel. Es hora del desayuno. Prefiera avena, fruta y evite sal.",
+        scheduled_time: "07:30:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "coffee",
+      },
+      {
+        elder_id: elderId,
+        label: "Almuerzo",
+        message_text: FALLBACK_REMINDERS.meal.adultMessage,
+        scheduled_time: "13:00:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "sun",
+      },
+      {
+        elder_id: elderId,
+        label: "Merienda",
+        message_text:
+          "Don Manuel, es hora de la merienda. Una fruta o yogurt bajo en grasa es ideal.",
+        scheduled_time: "17:00:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "cookie",
+      },
+      {
+        elder_id: elderId,
+        label: "Cena",
+        message_text:
+          "Don Manuel, es hora de la cena. Comida ligera: evite frituras y embutidos.",
+        scheduled_time: "19:30:00",
+        days_of_week: [1, 2, 3, 4, 5, 6, 7],
+        icon: "moon",
+      },
+    ])
+    .select("id, label");
+
+  const mealByLabel = new Map(mealSchedules?.map((m) => [m.label, m.id]) ?? []);
+
   await admin.from("reminders").insert([
     {
       elder_id: elderId,
@@ -306,6 +398,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      meal_schedule_id: mealByLabel.get("Desayuno") ?? null,
       type: "meal",
       title: "Desayuno",
       message_text:
@@ -316,6 +409,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      meal_schedule_id: mealByLabel.get("Almuerzo") ?? null,
       type: "meal",
       title: "Almuerzo",
       message_text: FALLBACK_REMINDERS.meal.adultMessage,
@@ -325,6 +419,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      meal_schedule_id: mealByLabel.get("Merienda") ?? null,
       type: "meal",
       title: "Merienda",
       message_text:
@@ -335,6 +430,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      meal_schedule_id: mealByLabel.get("Cena") ?? null,
       type: "meal",
       title: "Cena",
       message_text:
@@ -345,6 +441,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      routine_activity_id: routineByTitle.get("Caminata suave") ?? null,
       type: "activity",
       title: "Caminata suave",
       message_text: "15 minutos de caminata tranquila en casa o en el jardín.",
@@ -354,6 +451,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      routine_activity_id: routineByTitle.get("Ejercicios de equilibrio") ?? null,
       type: "activity",
       title: "Ejercicios de equilibrio",
       message_text: "Estiramientos suaves y ejercicios de equilibrio durante 10 minutos.",
@@ -363,6 +461,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      routine_activity_id: routineByTitle.get("Beber agua") ?? null,
       type: "hydration",
       title: "Beber agua",
       message_text: "Recuerde tomar un vaso de agua. La hidratación ayuda a la presión.",
@@ -372,6 +471,7 @@ export async function resetDemoData() {
     },
     {
       elder_id: elderId,
+      routine_activity_id: routineByTitle.get("Lectura o pasatiempo") ?? null,
       type: "activity",
       title: "Lectura o pasatiempo",
       message_text: "Dedique un rato a leer o a una actividad que disfrute.",

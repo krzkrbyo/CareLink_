@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarClock, Stethoscope } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBox } from "@/components/ui/icon-box";
 import type { ElderAppointmentView } from "@/lib/data/elder-care-plan";
+import { resolveCareIcon, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 
 interface NextAppointmentCardProps {
   appointments: ElderAppointmentView[];
@@ -60,7 +61,10 @@ function AppointmentHighlight({
   appt: ElderAppointmentView;
   isMultiple: boolean;
 }) {
-  const Icon = appt.type === "examen" ? Stethoscope : CalendarClock;
+  const ApptIcon = resolveCareIcon(
+    appt.icon,
+    appt.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment
+  );
 
   return (
     <article
@@ -70,7 +74,7 @@ function AppointmentHighlight({
     >
       <div className="flex items-start gap-4">
         <IconBox
-          icon={Icon}
+          icon={ApptIcon}
           tone={appt.type === "examen" ? "secondary" : "accent"}
           size="lg"
         />

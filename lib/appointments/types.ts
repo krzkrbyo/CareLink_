@@ -42,6 +42,7 @@ export interface AppointmentInput {
   type: AppointmentType;
   startsAt: string;
   notes?: string;
+  icon?: string;
   facilityId?: string | null;
   professionalId?: string | null;
   locationText?: string;

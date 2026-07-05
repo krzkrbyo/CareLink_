@@ -1,9 +1,10 @@
 "use client";
 
-import { CheckCircle2, Loader2, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBox } from "@/components/ui/icon-box";
 import type { ElderMealView } from "@/lib/data/elder-care-plan";
+import { resolveCareIcon, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 import { cn } from "@/lib/utils";
 
 interface MealCardsProps {
@@ -33,6 +34,7 @@ export function MealCards({ meals, onConfirm, loading, confirmedMeals }: MealCar
     <div className="grid gap-4 sm:grid-cols-2">
       {meals.map((meal) => {
         const confirmed = confirmedMeals?.has(meal.label) || meal.status === "completed";
+        const MealIcon = resolveCareIcon(meal.icon, DEFAULT_CARE_ICONS.meal);
         return (
           <article
             key={meal.id}
@@ -42,7 +44,7 @@ export function MealCards({ meals, onConfirm, loading, confirmedMeals }: MealCar
             )}
           >
             <div className="flex items-start gap-4">
-              <IconBox icon={UtensilsCrossed} tone="secondary" size="lg" />
+              <IconBox icon={MealIcon} tone="secondary" size="lg" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold uppercase tracking-wide text-care-muted">
                   {meal.timeLabel}

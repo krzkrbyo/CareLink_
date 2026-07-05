@@ -16,6 +16,12 @@ import {
 import type { AppointmentInput, AppointmentStatus } from "@/lib/appointments/types";
 import { createUniqueElderSlug } from "@/lib/elders/slug";
 import { revalidateElderCarePaths } from "@/lib/elders/revalidate";
+import type { RoutineActivityInput } from "@/lib/routine-activities/types";
+import { upsertRoutineReminder } from "@/lib/routine-activities/sync-reminders";
+import type { MealScheduleInput } from "@/lib/meal-schedules/types";
+import { DEFAULT_MEAL_ICONS } from "@/lib/meal-schedules/types";
+import { upsertMealReminder } from "@/lib/meal-schedules/sync-reminders";
+import { DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 
 async function revalidateCaregiver(elderId: string) {
   await revalidateElderCarePaths(elderId);
@@ -57,6 +63,7 @@ export async function createMedication(elderId: string, data: MedicationSchedule
     schedule,
     calendar_export_enabled: true,
     active: true,
+    icon: data.icon ?? DEFAULT_CARE_ICONS.medication,
   });
 
   if (error) throw new Error(error.message);
@@ -84,16 +91,44 @@ export async function createMedication(elderId: string, data: MedicationSchedule
   return { success: true };
 }
 
-export async function updateMedication(id: string, elderId: string, data: {
-  name?: string;
-  dose?: string;
-  time?: string;
-  notes?: string;
-  active?: boolean;
-}) {
+export async function updateMedication(id: string, elderId: string, data: MedicationScheduleInput) {
   await requireCaregiverElderAccess(elderId);
   const supabase = await createClient();
-  const { error } = await supabase.from("medications").update(data).eq("id", id).eq("elder_id", elderId);
+
+  const schedule = {
+    times: [...data.schedule.times].sort(),
+    daysOfWeek: [...new Set(data.schedule.daysOfWeek)].sort(),
+    ...(data.schedule.timingMode === "interval"
+      ? {
+          timingMode: "interval" as const,
+          intervalHours: data.schedule.intervalHours,
+          firstDoseTime: data.schedule.firstDoseTime,
+        }
+      : { timingMode: "specific" as const }),
+  };
+  const primaryTime = schedule.times[0];
+  const frequency =
+    schedule.timingMode === "interval" && schedule.intervalHours
+      ? `cada ${schedule.intervalHours}h (${schedule.times.length}x/día)`
+      : `${schedule.times.length}x/día`;
+
+  const { error } = await supabase
+    .from("medications")
+    .update({
+      name: data.name,
+      dose: data.dose,
+      time: primaryTime,
+      scheduled_time: `${primaryTime}:00`,
+      frequency,
+      notes: data.notes,
+      start_date: data.startDate,
+      end_date: data.endDate ?? null,
+      schedule,
+      icon: data.icon ?? DEFAULT_CARE_ICONS.medication,
+    })
+    .eq("id", id)
+    .eq("elder_id", elderId);
+
   if (error) throw new Error(error.message);
   revalidateCaregiver(elderId);
   return { success: true };
@@ -135,6 +170,9 @@ export async function createAppointment(elderId: string, data: AppointmentInput)
       duration_minutes: data.durationMinutes ?? 60,
       status: data.status ?? "scheduled",
       calendar_export_enabled: true,
+      icon:
+        data.icon ??
+        (data.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment),
     })
     .select("id")
     .single();
@@ -186,6 +224,9 @@ export async function updateAppointment(id: string, elderId: string, data: Appoi
       preparation_notes: data.preparationNotes?.trim() || null,
       duration_minutes: data.durationMinutes ?? 60,
       status,
+      icon:
+        data.icon ??
+        (data.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment),
     })
     .eq("id", id)
     .eq("elder_id", elderId);
@@ -270,6 +311,190 @@ export async function deleteAppointment(id: string, elderId: string) {
   return { success: true };
 }
 
+// --- Routine activities CRUD ---
+
+export async function createRoutineActivity(elderId: string, data: RoutineActivityInput) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  const daysOfWeek = [...new Set(data.daysOfWeek)].sort();
+  if (daysOfWeek.length === 0) {
+    throw new Error("Seleccione al menos un día de la semana");
+  }
+
+  const { data: activity, error } = await supabase
+    .from("routine_activities")
+    .insert({
+      elder_id: elderId,
+      title: data.title.trim(),
+      type: data.type,
+      message_text: data.messageText?.trim() || null,
+      scheduled_time: `${data.scheduledTime}:00`,
+      days_of_week: daysOfWeek,
+      active: true,
+      icon:
+        data.icon ??
+        (data.type === "hydration" ? DEFAULT_CARE_ICONS.hydration : DEFAULT_CARE_ICONS.activity),
+    })
+    .select("*")
+    .single();
+
+  if (error || !activity) throw new Error(error?.message ?? "No se pudo crear la actividad");
+
+  await upsertRoutineReminder(supabase, activity);
+
+  revalidateCaregiver(elderId);
+  return { success: true, id: activity.id };
+}
+
+export async function updateRoutineActivity(
+  id: string,
+  elderId: string,
+  data: Partial<RoutineActivityInput> & { active?: boolean }
+) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  const update: Record<string, unknown> = {};
+  if (data.title !== undefined) update.title = data.title.trim();
+  if (data.type !== undefined) update.type = data.type;
+  if (data.messageText !== undefined) update.message_text = data.messageText.trim() || null;
+  if (data.scheduledTime !== undefined) update.scheduled_time = `${data.scheduledTime}:00`;
+  if (data.daysOfWeek !== undefined) {
+    const daysOfWeek = [...new Set(data.daysOfWeek)].sort();
+    if (daysOfWeek.length === 0) throw new Error("Seleccione al menos un día de la semana");
+    update.days_of_week = daysOfWeek;
+  }
+  if (data.active !== undefined) update.active = data.active;
+  if (data.icon !== undefined) update.icon = data.icon;
+
+  const { data: activity, error } = await supabase
+    .from("routine_activities")
+    .update(update)
+    .eq("id", id)
+    .eq("elder_id", elderId)
+    .select("*")
+    .single();
+
+  if (error || !activity) throw new Error(error?.message ?? "No se pudo actualizar la actividad");
+
+  if (activity.active) {
+    await upsertRoutineReminder(supabase, activity);
+  } else {
+    await supabase.from("reminders").delete().eq("routine_activity_id", id).eq("status", "pending");
+  }
+
+  revalidateCaregiver(elderId);
+  return { success: true };
+}
+
+export async function deleteRoutineActivity(id: string, elderId: string) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  await supabase.from("reminders").delete().eq("routine_activity_id", id);
+
+  const { error } = await supabase
+    .from("routine_activities")
+    .delete()
+    .eq("id", id)
+    .eq("elder_id", elderId);
+
+  if (error) throw new Error(error.message);
+  revalidateCaregiver(elderId);
+  return { success: true };
+}
+
+// --- Meal schedules CRUD ---
+
+export async function createMealSchedule(elderId: string, data: MealScheduleInput) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  const daysOfWeek = [...new Set(data.daysOfWeek)].sort();
+  if (daysOfWeek.length === 0) {
+    throw new Error("Seleccione al menos un día de la semana");
+  }
+
+  const { data: schedule, error } = await supabase
+    .from("meal_schedules")
+    .insert({
+      elder_id: elderId,
+      label: data.label,
+      message_text: data.messageText?.trim() || null,
+      scheduled_time: `${data.scheduledTime}:00`,
+      days_of_week: daysOfWeek,
+      active: true,
+      icon: data.icon ?? DEFAULT_MEAL_ICONS[data.label] ?? DEFAULT_CARE_ICONS.meal,
+    })
+    .select("*")
+    .single();
+
+  if (error || !schedule) throw new Error(error?.message ?? "No se pudo crear el horario de comida");
+
+  await upsertMealReminder(supabase, schedule);
+
+  revalidateCaregiver(elderId);
+  return { success: true, id: schedule.id };
+}
+
+export async function updateMealSchedule(
+  id: string,
+  elderId: string,
+  data: Partial<MealScheduleInput> & { active?: boolean }
+) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  const update: Record<string, unknown> = {};
+  if (data.label !== undefined) update.label = data.label;
+  if (data.messageText !== undefined) update.message_text = data.messageText.trim() || null;
+  if (data.scheduledTime !== undefined) update.scheduled_time = `${data.scheduledTime}:00`;
+  if (data.daysOfWeek !== undefined) {
+    const daysOfWeek = [...new Set(data.daysOfWeek)].sort();
+    if (daysOfWeek.length === 0) throw new Error("Seleccione al menos un día de la semana");
+    update.days_of_week = daysOfWeek;
+  }
+  if (data.active !== undefined) update.active = data.active;
+  if (data.icon !== undefined) update.icon = data.icon;
+
+  const { data: schedule, error } = await supabase
+    .from("meal_schedules")
+    .update(update)
+    .eq("id", id)
+    .eq("elder_id", elderId)
+    .select("*")
+    .single();
+
+  if (error || !schedule) throw new Error(error?.message ?? "No se pudo actualizar el horario");
+
+  if (schedule.active) {
+    await upsertMealReminder(supabase, schedule);
+  } else {
+    await supabase.from("reminders").delete().eq("meal_schedule_id", id).eq("status", "pending");
+  }
+
+  revalidateCaregiver(elderId);
+  return { success: true };
+}
+
+export async function deleteMealSchedule(id: string, elderId: string) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+
+  await supabase.from("reminders").delete().eq("meal_schedule_id", id);
+
+  const { error } = await supabase
+    .from("meal_schedules")
+    .delete()
+    .eq("id", id)
+    .eq("elder_id", elderId);
+
+  if (error) throw new Error(error.message);
+  revalidateCaregiver(elderId);
+  return { success: true };
+}
+
 // --- Food rules CRUD ---
 
 export async function createFoodRule(elderId: string, data: {
@@ -285,6 +510,31 @@ export async function createFoodRule(elderId: string, data: {
     type: data.type,
     notes: data.notes,
   });
+  if (error) throw new Error(error.message);
+  revalidateCaregiver(elderId);
+  return { success: true };
+}
+
+export async function updateFoodRule(
+  id: string,
+  elderId: string,
+  data: {
+    label: string;
+    type: "allergen" | "prohibited" | "reduce" | "recommendation";
+    notes?: string;
+  }
+) {
+  await requireCaregiverElderAccess(elderId);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("food_rules")
+    .update({
+      label: data.label.trim(),
+      type: data.type,
+      notes: data.notes?.trim() || null,
+    })
+    .eq("id", id)
+    .eq("elder_id", elderId);
   if (error) throw new Error(error.message);
   revalidateCaregiver(elderId);
   return { success: true };

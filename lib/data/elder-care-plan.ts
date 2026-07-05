@@ -15,13 +15,20 @@ import {
   formatSpokenTimeMexico,
   formatTimeMexicoCity,
 } from "@/lib/time/mexico-city";
+import { syncRoutineRemindersForDate } from "@/lib/routine-activities/sync-reminders";
+import { syncMealRemindersForDate } from "@/lib/meal-schedules/sync-reminders";
+import { MEAL_ORDER, DEFAULT_MEAL_ICONS } from "@/lib/meal-schedules/types";
+import { startOfDay, endOfDay } from "@/lib/routine-activities/schedule";
 import type { Appointment, FoodRule, Medication } from "@/types/database";
+import type { CareIconKey } from "@/lib/icons/registry";
+import { normalizeCareIconKey, DEFAULT_CARE_ICONS } from "@/lib/icons/registry";
 
 export interface ElderMedicationView {
   id: string;
   name: string;
   dose: string | null;
   notes: string | null;
+  icon: CareIconKey;
   scheduleSummary: string;
   timesToday: string[];
   timesTodayLabels: string[];
@@ -34,6 +41,7 @@ export interface ElderAppointmentView {
   id: string;
   title: string;
   type: "cita" | "examen";
+  icon: CareIconKey;
   typeLabel: string;
   examSubtypeLabel: string | null;
   startsAt: string;
@@ -67,6 +75,7 @@ export interface ElderAgendaItem {
   sortKey: number;
   isPast: boolean;
   dateLabel?: string;
+  icon: CareIconKey;
 }
 
 export interface ElderMealView {
@@ -76,6 +85,7 @@ export interface ElderMealView {
   dueAt: string;
   status: "pending" | "completed" | "missed";
   message: string | null;
+  icon: CareIconKey;
 }
 
 export interface ElderRoutineView {
@@ -85,6 +95,8 @@ export interface ElderRoutineView {
   dueAt: string;
   status: "pending" | "completed" | "missed";
   message: string | null;
+  type: "activity" | "hydration";
+  icon: CareIconKey;
 }
 
 export interface ElderPersonalReminderView {
@@ -181,6 +193,7 @@ function buildMedicationView(med: Medication, now: Date): ElderMedicationView {
     name: med.name,
     dose: med.dose,
     notes: med.notes,
+    icon: normalizeCareIconKey(med.icon, DEFAULT_CARE_ICONS.medication),
     scheduleSummary,
     timesToday,
     timesTodayLabels,
@@ -211,6 +224,7 @@ function buildTodayAgenda(
         time: formatTimeLabel(time),
         sortKey: at.getTime(),
         isPast: at.getTime() < now.getTime(),
+        icon: med.icon,
       });
     }
   }
@@ -226,6 +240,7 @@ function buildTodayAgenda(
       time: appt.timeLabel,
       sortKey: at.getTime(),
       isPast: false,
+      icon: appt.icon,
     });
   }
 
@@ -274,23 +289,43 @@ function buildFeaturedMedicationDoses(medications: Medication[], now: Date): Eld
       sortKey: at.getTime(),
       isPast: at.getTime() < now.getTime(),
       dateLabel: formatDoseDateLabel(at, now),
+      icon: normalizeCareIconKey(med.icon, DEFAULT_CARE_ICONS.medication),
     };
   });
 }
 
-const MEAL_ORDER = ["Desayuno", "Almuerzo", "Merienda", "Cena"] as const;
+const MEAL_ORDER_LIST = MEAL_ORDER;
 
 function buildMealViews(
-  reminders: { id: string; title: string; due_at: string | null; status: string; message_text: string | null }[],
+  reminders: {
+    id: string;
+    title: string;
+    due_at: string | null;
+    status: string;
+    message_text: string | null;
+    meal_schedule_id: string | null;
+  }[],
+  iconByScheduleId: Map<string, string | null>,
   now: Date
 ): ElderMealView[] {
-  const mealReminders = reminders.filter((r) => MEAL_ORDER.includes(r.title as (typeof MEAL_ORDER)[number]));
+  const dayStart = startOfDay(now).getTime();
+  const dayEnd = endOfDay(now).getTime();
 
-  return MEAL_ORDER.flatMap((label) => {
+  const mealReminders = reminders.filter((r) => {
+    if (!MEAL_ORDER_LIST.includes(r.title as (typeof MEAL_ORDER_LIST)[number])) return false;
+    if (!r.due_at) return false;
+    const due = new Date(r.due_at).getTime();
+    return due >= dayStart && due <= dayEnd;
+  });
+
+  return MEAL_ORDER_LIST.flatMap((label) => {
     const reminder = mealReminders.find((r) => r.title === label);
     if (!reminder) return [];
 
     const due = reminder.due_at ? new Date(reminder.due_at) : now;
+    const storedIcon = reminder.meal_schedule_id
+      ? iconByScheduleId.get(reminder.meal_schedule_id)
+      : null;
     return [
       {
         id: reminder.id,
@@ -299,6 +334,10 @@ function buildMealViews(
         dueAt: reminder.due_at ?? now.toISOString(),
         status: reminder.status as ElderMealView["status"],
         message: reminder.message_text,
+        icon: normalizeCareIconKey(
+          storedIcon,
+          (DEFAULT_MEAL_ICONS[label] as CareIconKey) ?? DEFAULT_CARE_ICONS.meal
+        ),
       },
     ];
   });
@@ -313,11 +352,22 @@ function buildRoutineViews(
     message_text: string | null;
     type: string;
     caregiver_message_text?: string | null;
-  }[]
+    routine_activity_id: string | null;
+  }[],
+  iconByActivityId: Map<string, string | null>,
+  now: Date
 ): ElderRoutineView[] {
+  const dayStart = startOfDay(now).getTime();
+  const dayEnd = endOfDay(now).getTime();
+
   return reminders
-    .filter((r) => r.type === "activity" || r.type === "hydration")
-    .filter((r) => !isVoicePersonalReminder(r))
+    .filter((r) => {
+      if (r.type !== "activity" && r.type !== "hydration") return false;
+      if (isVoicePersonalReminder(r)) return false;
+      if (!r.due_at) return false;
+      const due = new Date(r.due_at).getTime();
+      return due >= dayStart && due <= dayEnd;
+    })
     .sort((a, b) => {
       const ta = a.due_at ? new Date(a.due_at).getTime() : 0;
       const tb = b.due_at ? new Date(b.due_at).getTime() : 0;
@@ -325,6 +375,11 @@ function buildRoutineViews(
     })
     .map((r) => {
       const due = r.due_at ? new Date(r.due_at) : new Date();
+      const fallback =
+        r.type === "hydration" ? DEFAULT_CARE_ICONS.hydration : DEFAULT_CARE_ICONS.activity;
+      const storedIcon = r.routine_activity_id
+        ? iconByActivityId.get(r.routine_activity_id)
+        : null;
       return {
         id: r.id,
         title: r.title,
@@ -332,6 +387,8 @@ function buildRoutineViews(
         dueAt: r.due_at ?? new Date().toISOString(),
         status: r.status as ElderRoutineView["status"],
         message: r.message_text,
+        type: r.type as ElderRoutineView["type"],
+        icon: normalizeCareIconKey(storedIcon, fallback),
       };
     });
 }
@@ -399,31 +456,51 @@ export async function fetchElderCarePlan(
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [{ data: medications }, { data: appointments }, { data: foodRules }, { data: reminders }] =
-    await Promise.all([
-      supabase
-        .from("medications")
-        .select("*")
-        .eq("elder_id", elderId)
-        .order("created_at"),
-      supabase
-        .from("appointments")
-        .select("*")
-        .eq("elder_id", elderId)
-        .gte("starts_at", startOfToday.toISOString())
-        .order("starts_at"),
-      supabase
-        .from("food_rules")
-        .select("*")
-        .eq("elder_id", elderId)
-        .order("created_at"),
-      supabase
-        .from("reminders")
-        .select("id, title, type, due_at, status, message_text, caregiver_message_text")
-        .eq("elder_id", elderId)
-        .in("type", ["meal", "activity", "hydration", "personal"])
-        .order("due_at"),
-    ]);
+  await syncRoutineRemindersForDate(supabase, elderId, now);
+  await syncMealRemindersForDate(supabase, elderId, now);
+
+  const [
+    { data: medications },
+    { data: appointments },
+    { data: foodRules },
+    { data: mealSchedules },
+    { data: routineActivities },
+    { data: reminders },
+  ] = await Promise.all([
+    supabase
+      .from("medications")
+      .select("*")
+      .eq("elder_id", elderId)
+      .order("created_at"),
+    supabase
+      .from("appointments")
+      .select("*")
+      .eq("elder_id", elderId)
+      .gte("starts_at", startOfToday.toISOString())
+      .order("starts_at"),
+    supabase
+      .from("food_rules")
+      .select("*")
+      .eq("elder_id", elderId)
+      .order("created_at"),
+    supabase.from("meal_schedules").select("id, icon").eq("elder_id", elderId),
+    supabase.from("routine_activities").select("id, icon").eq("elder_id", elderId),
+    supabase
+      .from("reminders")
+      .select(
+        "id, title, type, due_at, status, message_text, caregiver_message_text, routine_activity_id, meal_schedule_id"
+      )
+      .eq("elder_id", elderId)
+      .in("type", ["meal", "activity", "hydration", "personal"])
+      .order("due_at"),
+  ]);
+
+  const mealIconByScheduleId = new Map(
+    (mealSchedules ?? []).map((schedule) => [schedule.id, schedule.icon])
+  );
+  const routineIconByActivityId = new Map(
+    (routineActivities ?? []).map((activity) => [activity.id, activity.icon])
+  );
 
   const apptList = (appointments ?? []) as Appointment[];
   const facilityIds = apptList.map((a) => a.facility_id).filter(Boolean) as string[];
@@ -453,6 +530,10 @@ export async function fetchElderCarePlan(
       id: appt.id,
       title: appt.title,
       type: appt.type,
+      icon: normalizeCareIconKey(
+        appt.icon,
+        appt.type === "examen" ? DEFAULT_CARE_ICONS.exam : DEFAULT_CARE_ICONS.appointment
+      ),
       typeLabel: appt.type === "examen" ? "Examen médico" : "Cita médica",
       examSubtypeLabel: appt.exam_subtype
         ? EXAM_SUBTYPE_LABELS[appt.exam_subtype as keyof typeof EXAM_SUBTYPE_LABELS]
@@ -488,8 +569,8 @@ export async function fetchElderCarePlan(
     foodRules: foodRuleViews,
     todayAgenda: buildTodayAgenda(medicationViews, appointmentViews, now),
     featuredMedicationDoses: buildFeaturedMedicationDoses(activeMeds as Medication[], now),
-    meals: buildMealViews(reminders ?? [], now),
-    routineActivities: buildRoutineViews(reminders ?? []),
+    meals: buildMealViews(reminders ?? [], mealIconByScheduleId, now),
+    routineActivities: buildRoutineViews(reminders ?? [], routineIconByActivityId, now),
     personalReminders: buildPersonalReminderViews(reminders ?? [], now),
   };
 }

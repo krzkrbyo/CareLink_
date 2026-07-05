@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { createMedication } from "@/app/actions/caregiver";
+import { createMedication, updateMedication } from "@/app/actions/caregiver";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
@@ -19,13 +19,19 @@ import {
   defaultTimesForCount,
   endDateFromDurationDays,
   generateTimesFromInterval,
+  parseMedicationSchedule,
   treatmentDaysBetween,
 } from "@/lib/medications/schedule";
+import { IconPicker } from "@/components/ui/icon-picker";
+import { DEFAULT_CARE_ICONS, normalizeCareIconKey, type CareIconKey } from "@/lib/icons/registry";
+import type { Medication } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 interface MedicationScheduleFormProps {
   elderId: string;
+  editing?: Medication | null;
   onSuccess?: (message: string) => void;
+  onCancelEdit?: () => void;
 }
 
 type DurationMode = "ongoing" | "fixed";
@@ -34,21 +40,72 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function MedicationScheduleForm({ elderId, onSuccess }: MedicationScheduleFormProps) {
+function buildMedicationDefaults(editing?: Medication | null) {
+  if (!editing) {
+    const today = todayIsoDate();
+    return {
+      name: "",
+      dose: "",
+      notes: "",
+      startDate: today,
+      durationMode: "ongoing" as DurationMode,
+      durationDays: 30,
+      endDate: endDateFromDurationDays(today, 30),
+      timingMode: "specific" as ScheduleTimingMode,
+      timesPerDay: 1,
+      times: defaultTimesForCount(1),
+      firstDoseTime: "08:00",
+      intervalHours: 8,
+      daysOfWeek: ALL_WEEKDAYS,
+      icon: DEFAULT_CARE_ICONS.medication as CareIconKey,
+    };
+  }
+
+  const schedule = parseMedicationSchedule(editing.schedule);
+  const hasEnd = Boolean(editing.end_date);
+  return {
+    name: editing.name,
+    dose: editing.dose ?? "",
+    notes: editing.notes ?? "",
+    startDate: editing.start_date,
+    durationMode: (hasEnd ? "fixed" : "ongoing") as DurationMode,
+    durationDays:
+      hasEnd && editing.end_date
+        ? treatmentDaysBetween(editing.start_date, editing.end_date)
+        : 30,
+    endDate: editing.end_date ?? endDateFromDurationDays(editing.start_date, 30),
+    timingMode: (schedule.timingMode ?? "specific") as ScheduleTimingMode,
+    timesPerDay: schedule.times.length,
+    times: schedule.times,
+    firstDoseTime: schedule.firstDoseTime ?? schedule.times[0] ?? "08:00",
+    intervalHours: schedule.intervalHours ?? 8,
+    daysOfWeek: schedule.daysOfWeek,
+    icon: normalizeCareIconKey(editing.icon, DEFAULT_CARE_ICONS.medication),
+  };
+}
+
+export function MedicationScheduleForm({
+  elderId,
+  editing,
+  onSuccess,
+  onCancelEdit,
+}: MedicationScheduleFormProps) {
+  const defaults = useMemo(() => buildMedicationDefaults(editing), [editing]);
   const [pending, startTransition] = useTransition();
-  const [name, setName] = useState("");
-  const [dose, setDose] = useState("");
-  const [notes, setNotes] = useState("");
-  const [startDate, setStartDate] = useState(todayIsoDate());
-  const [durationMode, setDurationMode] = useState<DurationMode>("ongoing");
-  const [durationDays, setDurationDays] = useState(30);
-  const [endDate, setEndDate] = useState(() => endDateFromDurationDays(todayIsoDate(), 30));
-  const [timingMode, setTimingMode] = useState<ScheduleTimingMode>("specific");
-  const [timesPerDay, setTimesPerDay] = useState(1);
-  const [times, setTimes] = useState<string[]>(defaultTimesForCount(1));
-  const [firstDoseTime, setFirstDoseTime] = useState("08:00");
-  const [intervalHours, setIntervalHours] = useState<number>(8);
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(ALL_WEEKDAYS);
+  const [name, setName] = useState(defaults.name);
+  const [dose, setDose] = useState(defaults.dose);
+  const [notes, setNotes] = useState(defaults.notes);
+  const [startDate, setStartDate] = useState(defaults.startDate);
+  const [durationMode, setDurationMode] = useState<DurationMode>(defaults.durationMode);
+  const [durationDays, setDurationDays] = useState(defaults.durationDays);
+  const [endDate, setEndDate] = useState(defaults.endDate);
+  const [timingMode, setTimingMode] = useState<ScheduleTimingMode>(defaults.timingMode);
+  const [timesPerDay, setTimesPerDay] = useState(defaults.timesPerDay);
+  const [times, setTimes] = useState<string[]>(defaults.times);
+  const [firstDoseTime, setFirstDoseTime] = useState(defaults.firstDoseTime);
+  const [intervalHours, setIntervalHours] = useState<number>(defaults.intervalHours);
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(defaults.daysOfWeek);
+  const [icon, setIcon] = useState<CareIconKey>(defaults.icon);
   const [error, setError] = useState<string | null>(null);
 
   const resolvedTimes = useMemo(() => {
@@ -97,19 +154,21 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
   }
 
   function resetForm() {
-    const today = todayIsoDate();
-    setName("");
-    setDose("");
-    setNotes("");
-    setStartDate(today);
-    setDurationMode("ongoing");
-    setDurationDays(30);
-    setEndDate(endDateFromDurationDays(today, 30));
-    setTimingMode("specific");
-    handleTimesPerDayChange(1);
-    setFirstDoseTime("08:00");
-    setIntervalHours(8);
-    setDaysOfWeek(ALL_WEEKDAYS);
+    const fresh = buildMedicationDefaults(null);
+    setName(fresh.name);
+    setDose(fresh.dose);
+    setNotes(fresh.notes);
+    setStartDate(fresh.startDate);
+    setDurationMode(fresh.durationMode);
+    setDurationDays(fresh.durationDays);
+    setEndDate(fresh.endDate);
+    setTimingMode(fresh.timingMode);
+    setTimesPerDay(fresh.timesPerDay);
+    setTimes(fresh.times);
+    setFirstDoseTime(fresh.firstDoseTime);
+    setIntervalHours(fresh.intervalHours);
+    setDaysOfWeek(fresh.daysOfWeek);
+    setIcon(fresh.icon);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -135,6 +194,7 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
       name: name.trim(),
       dose: dose.trim() || undefined,
       notes: notes.trim() || undefined,
+      icon,
       startDate,
       endDate: durationMode === "fixed" ? endDate : null,
       schedule: {
@@ -149,9 +209,15 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
 
     startTransition(async () => {
       try {
-        await createMedication(elderId, payload);
-        onSuccess?.("Medicamento agregado con calendarización");
-        resetForm();
+        if (editing) {
+          await updateMedication(editing.id, elderId, payload);
+          onSuccess?.("Medicamento actualizado");
+          onCancelEdit?.();
+        } else {
+          await createMedication(elderId, payload);
+          onSuccess?.("Medicamento agregado con calendarización");
+          resetForm();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo guardar el medicamento");
       }
@@ -161,7 +227,7 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Agregar medicamento</CardTitle>
+        <CardTitle>{editing ? "Editar medicamento" : "Agregar medicamento"}</CardTitle>
         <p className="text-sm text-care-muted">
           Configure dosis, duración del tratamiento, horarios y días para recordatorios y calendario.
         </p>
@@ -172,12 +238,16 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
             <h3 className="text-sm font-semibold uppercase tracking-wide text-care-muted">
               Información básica
             </h3>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Nombre del medicamento"
-            />
+            <div className="flex items-stretch gap-2">
+              <IconPicker compact context="medication" value={icon} onChange={setIcon} />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Nombre del medicamento"
+                className="min-w-0 flex-1"
+              />
+            </div>
             <Input
               value={dose}
               onChange={(e) => setDose(e.target.value)}
@@ -447,9 +517,16 @@ export function MedicationScheduleForm({ elderId, onSuccess }: MedicationSchedul
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
           )}
 
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? "Guardando..." : "Guardar medicamento"}
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {editing && onCancelEdit && (
+              <Button type="button" variant="outline" className="w-full" onClick={onCancelEdit}>
+                Cancelar
+              </Button>
+            )}
+            <Button type="submit" disabled={pending} className="w-full">
+              {pending ? "Guardando..." : editing ? "Guardar cambios" : "Guardar medicamento"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

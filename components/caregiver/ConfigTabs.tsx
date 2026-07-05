@@ -4,22 +4,30 @@ import { useState, useTransition } from "react";
 import {
   deleteMedication,
   deleteFoodRule,
-  createFoodRule,
+  deleteRoutineActivity,
+  deleteMealSchedule,
 } from "@/app/actions/caregiver";
 import { MedicationScheduleForm } from "@/components/caregiver/MedicationScheduleForm";
 import { AppointmentScheduleForm } from "@/components/caregiver/AppointmentScheduleForm";
 import { AppointmentList } from "@/components/caregiver/AppointmentList";
 import { MedicalCatalogPanel } from "@/components/caregiver/MedicalCatalogPanel";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { CalendarClock, CalendarPlus, Pill, Salad, Trash2 } from "lucide-react";
+import { RoutineActivityForm } from "@/components/caregiver/RoutineActivityForm";
+import { MealScheduleForm } from "@/components/caregiver/MealScheduleForm";
+import { FoodRuleForm } from "@/components/caregiver/FoodRuleForm";
+import { CalendarClock, CalendarPlus, Dumbbell, Pencil, Pill, Salad, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconBox } from "@/components/ui/icon-box";
 import { formatMedicationScheduleSummary } from "@/lib/medications/schedule";
-import type { Medication, Appointment, FoodRule } from "@/types/database";
+import { formatRoutineActivitySummary } from "@/lib/routine-activities/types";
+import { formatMealScheduleSummary, DEFAULT_MEAL_ICONS } from "@/lib/meal-schedules/types";
+import {
+  DEFAULT_CARE_ICONS,
+  normalizeCareIconKey,
+  resolveCareIcon,
+  type CareIconKey,
+} from "@/lib/icons/registry";
+import type { Medication, Appointment, FoodRule, RoutineActivity, MealSchedule } from "@/types/database";
 import type { MedicalCatalog } from "@/lib/appointments/types";
 
 interface ConfigTabsProps {
@@ -27,6 +35,8 @@ interface ConfigTabsProps {
   medications: Medication[];
   appointments: Appointment[];
   foodRules: FoodRule[];
+  routineActivities: RoutineActivity[];
+  mealSchedules: MealSchedule[];
   catalog: MedicalCatalog;
 }
 
@@ -44,9 +54,15 @@ const TABS = [
     icon: CalendarClock,
   },
   {
+    id: "rutina",
+    label: "Rutina",
+    description: "Actividades e hidratación",
+    icon: Dumbbell,
+  },
+  {
     id: "alimentacion",
     label: "Alimentación",
-    description: "Restricciones y recomendaciones",
+    description: "Comidas y restricciones",
     icon: Salad,
   },
 ] as const;
@@ -58,16 +74,22 @@ export function ConfigTabs({
   medications,
   appointments,
   foodRules,
+  routineActivities,
+  mealSchedules,
   catalog,
 }: ConfigTabsProps) {
   const [tab, setTab] = useState<TabId>("medicamentos");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
+  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingRoutine, setEditingRoutine] = useState<RoutineActivity | null>(null);
+  const [editingMeal, setEditingMeal] = useState<MealSchedule | null>(null);
+  const [editingFoodRule, setEditingFoodRule] = useState<FoodRule | null>(null);
 
   return (
     <div>
-      <div className="mb-6 grid gap-2 sm:grid-cols-3">
+      <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {TABS.map(({ id, label, description, icon: Icon }) => (
           <button
             key={id}
@@ -102,18 +124,29 @@ export function ConfigTabs({
 
       {tab === "medicamentos" && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <MedicationScheduleForm elderId={elderId} onSuccess={setMessage} />
+          <MedicationScheduleForm
+            key={editingMedication?.id ?? "new-med"}
+            elderId={elderId}
+            editing={editingMedication}
+            onSuccess={setMessage}
+            onCancelEdit={() => setEditingMedication(null)}
+          />
           <ItemList
-            icon={Pill}
+            fallbackIcon={Pill}
+            fallbackIconKey={DEFAULT_CARE_ICONS.medication}
             items={medications.map((m) => ({
               id: m.id,
               title: m.name,
               subtitle: formatMedicationScheduleSummary(m),
+              iconKey: normalizeCareIconKey(m.icon, DEFAULT_CARE_ICONS.medication),
               calendarHref: `/api/calendar/medication/${m.id}`,
             }))}
+            editingId={editingMedication?.id ?? null}
+            onEdit={(id) => setEditingMedication(medications.find((m) => m.id === id) ?? null)}
             onDelete={(id) =>
               startTransition(async () => {
                 await deleteMedication(id, elderId);
+                if (editingMedication?.id === id) setEditingMedication(null);
                 setMessage("Medicamento eliminado");
               })
             }
@@ -127,7 +160,7 @@ export function ConfigTabs({
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
             <AppointmentScheduleForm
-              key={editingAppointment?.id ?? "new"}
+              key={editingAppointment?.id ?? "new-appt"}
               elderId={elderId}
               catalog={catalog}
               editing={editingAppointment}
@@ -147,60 +180,114 @@ export function ConfigTabs({
         </div>
       )}
 
-      {tab === "alimentacion" && (
+      {tab === "rutina" && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Regla alimenticia</CardTitle>
-              <p className="text-sm text-care-muted">
-                Indique alimentos prohibidos, a reducir o recomendaciones.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const fd = new FormData(e.currentTarget);
-                  startTransition(async () => {
-                    await createFoodRule(elderId, {
-                      label: fd.get("label") as string,
-                      type: fd.get("type") as FoodRule["type"],
-                    });
-                    setMessage("Regla alimenticia agregada");
-                    e.currentTarget.reset();
-                  });
-                }}
-                className="space-y-3"
-              >
-                <Select name="type">
-                  <option value="prohibited">Prohibido</option>
-                  <option value="reduce">Reducir</option>
-                  <option value="recommendation">Recomendación</option>
-                  <option value="allergen">Alérgeno</option>
-                </Select>
-                <Input name="label" required placeholder="Ej: sal, tortillas, lácteos" />
-                <Button type="submit" disabled={pending} className="w-full">
-                  Guardar regla
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <RoutineActivityForm
+            key={editingRoutine?.id ?? "new-routine"}
+            elderId={elderId}
+            editing={editingRoutine}
+            onSuccess={setMessage}
+            onCancelEdit={() => setEditingRoutine(null)}
+          />
           <ItemList
-            icon={Salad}
-            items={foodRules.map((f) => ({
-              id: f.id,
-              title: f.label,
-              subtitle: f.type,
+            fallbackIcon={Dumbbell}
+            fallbackIconKey={DEFAULT_CARE_ICONS.activity}
+            items={routineActivities.map((activity) => ({
+              id: activity.id,
+              title: activity.title,
+              subtitle: formatRoutineActivitySummary(activity),
+              iconKey: normalizeCareIconKey(
+                activity.icon,
+                activity.type === "hydration"
+                  ? DEFAULT_CARE_ICONS.hydration
+                  : DEFAULT_CARE_ICONS.activity
+              ),
             }))}
+            editingId={editingRoutine?.id ?? null}
+            onEdit={(id) =>
+              setEditingRoutine(routineActivities.find((a) => a.id === id) ?? null)
+            }
             onDelete={(id) =>
               startTransition(async () => {
-                await deleteFoodRule(id, elderId);
-                setMessage("Regla eliminada");
+                await deleteRoutineActivity(id, elderId);
+                if (editingRoutine?.id === id) setEditingRoutine(null);
+                setMessage("Actividad eliminada");
               })
             }
             pending={pending}
-            emptyText="No hay reglas alimenticias registradas."
+            emptyText="No hay actividades de rutina asignadas todavía."
           />
+        </div>
+      )}
+
+      {tab === "alimentacion" && (
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <MealScheduleForm
+              key={editingMeal?.id ?? "new-meal"}
+              elderId={elderId}
+              existingSchedules={mealSchedules}
+              editing={editingMeal}
+              onSuccess={setMessage}
+              onCancelEdit={() => setEditingMeal(null)}
+            />
+            <ItemList
+              fallbackIcon={Salad}
+              fallbackIconKey={DEFAULT_CARE_ICONS.meal}
+              items={mealSchedules.map((schedule) => ({
+                id: schedule.id,
+                title: schedule.label,
+                subtitle: formatMealScheduleSummary(schedule),
+                iconKey: normalizeCareIconKey(
+                  schedule.icon,
+                  normalizeCareIconKey(
+                    DEFAULT_MEAL_ICONS[schedule.label],
+                    DEFAULT_CARE_ICONS.meal
+                  )
+                ),
+              }))}
+              editingId={editingMeal?.id ?? null}
+              onEdit={(id) => setEditingMeal(mealSchedules.find((s) => s.id === id) ?? null)}
+              onDelete={(id) =>
+                startTransition(async () => {
+                  await deleteMealSchedule(id, elderId);
+                  if (editingMeal?.id === id) setEditingMeal(null);
+                  setMessage("Horario de comida eliminado");
+                })
+              }
+              pending={pending}
+              emptyText="No hay horarios de comida registrados todavía."
+            />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <FoodRuleForm
+              key={editingFoodRule?.id ?? "new-food-rule"}
+              elderId={elderId}
+              editing={editingFoodRule}
+              onSuccess={setMessage}
+              onCancelEdit={() => setEditingFoodRule(null)}
+            />
+            <ItemList
+              fallbackIcon={Salad}
+              items={foodRules.map((f) => ({
+                id: f.id,
+                title: f.label,
+                subtitle: f.type,
+              }))}
+              editingId={editingFoodRule?.id ?? null}
+              onEdit={(id) => setEditingFoodRule(foodRules.find((f) => f.id === id) ?? null)}
+              onDelete={(id) =>
+                startTransition(async () => {
+                  await deleteFoodRule(id, elderId);
+                  if (editingFoodRule?.id === id) setEditingFoodRule(null);
+                  setMessage("Regla eliminada");
+                })
+              }
+              pending={pending}
+              emptyText="No hay reglas alimenticias registradas."
+            />
+          </div>
         </div>
       )}
     </div>
@@ -208,36 +295,57 @@ export function ConfigTabs({
 }
 
 function ItemList({
-  icon,
+  fallbackIcon,
+  fallbackIconKey,
   items,
+  editingId,
+  onEdit,
   onDelete,
   pending,
   emptyText,
 }: {
-  icon: LucideIcon;
-  items: { id: string; title: string; subtitle: string; calendarHref?: string }[];
+  fallbackIcon: LucideIcon;
+  fallbackIconKey?: CareIconKey;
+  items: {
+    id: string;
+    title: string;
+    subtitle: string;
+    iconKey?: CareIconKey;
+    calendarHref?: string;
+  }[];
+  editingId?: string | null;
+  onEdit?: (id: string) => void;
   onDelete: (id: string) => void;
   pending: boolean;
   emptyText: string;
 }) {
   if (items.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-10 text-center text-care-muted">
-          <IconBox icon={icon} tone="muted" size="lg" />
-          <p>{emptyText}</p>
-        </CardContent>
-      </Card>
+      <div className="care-surface flex flex-col items-center gap-3 py-10 text-center text-care-muted">
+        <IconBox icon={fallbackIcon} tone="muted" size="lg" />
+        <p>{emptyText}</p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      {items.map((item) => (
-        <Card key={item.id}>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
+      {items.map((item) => {
+        const ItemIcon = item.iconKey
+          ? resolveCareIcon(item.iconKey, fallbackIconKey ?? DEFAULT_CARE_ICONS.medication)
+          : fallbackIcon;
+        const isEditing = editingId === item.id;
+
+        return (
+          <div
+            key={item.id}
+            className={cn(
+              "care-surface flex items-center justify-between gap-3 p-4",
+              isEditing && "ring-2 ring-care-accent-dark"
+            )}
+          >
             <div className="flex min-w-0 items-center gap-3">
-              <IconBox icon={icon} tone="accent" size="sm" />
+              <IconBox icon={ItemIcon} tone="accent" size="sm" />
               <div className="min-w-0">
                 <p className="truncate font-semibold text-care-foreground">{item.title}</p>
                 <p className="truncate text-sm text-care-muted">{item.subtitle}</p>
@@ -254,7 +362,19 @@ function ItemList({
                   <CalendarPlus className="h-5 w-5" />
                 </a>
               )}
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(item.id)}
+                  disabled={pending}
+                  className="rounded-lg p-2 text-care-accent-dark hover:bg-care-primary"
+                  aria-label={`Editar ${item.title}`}
+                >
+                  <Pencil className="h-5 w-5" />
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => onDelete(item.id)}
                 disabled={pending}
                 className="rounded-lg p-2 text-red-600 hover:bg-red-50"
@@ -263,9 +383,9 @@ function ItemList({
                 <Trash2 className="h-5 w-5" />
               </button>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
