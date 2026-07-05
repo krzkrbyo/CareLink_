@@ -24,7 +24,9 @@ export function AnimateIn({
 
   return (
     <Tag
-      ref={ref as React.RefObject<HTMLDivElement>}
+      ref={(node: HTMLElement | null) => {
+        ref.current = node;
+      }}
       className={cn(
         "landing-animate",
         inView && "landing-animate-visible",

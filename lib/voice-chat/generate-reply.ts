@@ -69,7 +69,7 @@ export async function generateVoiceChatReply(
     suggestAlert?: boolean;
     alertType?: string;
     severity?: string;
-    createReminder?: boolean;
+    createReminder?: unknown;
     reminder?: {
       title?: string;
       timePhrase?: string;
