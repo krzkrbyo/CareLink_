@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "CareLink — Acompañamiento con cariño",
   description: "Plataforma de cuidado y acompañamiento para adultos mayores y sus familias",
   manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/icons/carelink-logo.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/carelink-logo.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -13,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#c5b3d3",
+  themeColor: "#9b87b5",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

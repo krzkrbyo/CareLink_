@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Heart } from "lucide-react";
 import { getSessionUser, getProfile } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
-import { IconBox } from "@/components/ui/icon-box";
 import { LandingContent } from "@/components/landing/LandingContent";
+import { CareLinkLogoMark } from "@/components/brand/CareLinkLogo";
 
 export default async function LandingPage() {
   const user = await getSessionUser();
@@ -16,7 +15,7 @@ export default async function LandingPage() {
     return (
       <main className="flex min-h-dvh items-center justify-center p-6">
         <div className="care-surface max-w-md px-8 py-10 text-center">
-          <IconBox icon={Heart} tone="accent" size="xl" className="mx-auto mb-4" />
+          <CareLinkLogoMark size="xl" className="mx-auto mb-4" />
           <p className="text-care-muted">
             Bienvenido de nuevo, <strong className="text-care-foreground">{profile.full_name}</strong>
           </p>

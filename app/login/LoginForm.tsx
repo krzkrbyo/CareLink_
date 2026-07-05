@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { signIn } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
-import { IconBox } from "@/components/ui/icon-box";
 import { Input } from "@/components/ui/input";
+import { CareLinkLogoMark } from "@/components/brand/CareLinkLogo";
 
 export default function LoginForm() {
   const searchParams = useSearchParams();
@@ -45,7 +45,7 @@ export default function LoginForm() {
         </Button>
         <Card className="shadow-lg">
         <CardHeader className="text-center">
-          <IconBox icon={Heart} tone="accent" size="xl" className="mx-auto mb-3" />
+          <CareLinkLogoMark size="xl" className="mx-auto mb-3" />
           <CardTitle className="text-3xl">CareLink</CardTitle>
           <p className="text-care-muted">Iniciar sesión · {portalLabel}</p>
         </CardHeader>

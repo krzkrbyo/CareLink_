@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBox } from "@/components/ui/icon-box";
+import { CareLinkLogo, CareLinkLogoMark } from "@/components/brand/CareLinkLogo";
 import { cn } from "@/lib/utils";
 import { AnimateIn } from "./AnimateIn";
 import { AnimatedCounter } from "./AnimatedCounter";
@@ -203,12 +204,7 @@ export function LandingContent() {
         )}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-care-accent-dark text-white shadow-md landing-logo-pulse">
-              <Heart className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold text-care-foreground sm:text-2xl">CareLink</span>
-          </Link>
+          <CareLinkLogo href="/" size="md" pulse />
 
           <nav className="hidden items-center gap-1 md:flex">
             {NAV_LINKS.map(({ href, label }) => (
@@ -609,7 +605,7 @@ export function LandingContent() {
       <footer className="border-t border-care-secondary/50 px-6 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2 text-care-muted">
-            <Heart className="h-4 w-4 text-care-accent-dark" />
+            <CareLinkLogoMark size="sm" className="shadow-sm" />
             <span className="text-sm">CareLink — Acompañamiento con cariño</span>
           </div>
           <div className="flex gap-4 text-sm">
