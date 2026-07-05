@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   deleteMedication,
   deleteFoodRule,
@@ -78,6 +79,7 @@ export function ConfigTabs({
   mealSchedules,
   catalog,
 }: ConfigTabsProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<TabId>("medicamentos");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -86,6 +88,19 @@ export function ConfigTabs({
   const [editingRoutine, setEditingRoutine] = useState<RoutineActivity | null>(null);
   const [editingMeal, setEditingMeal] = useState<MealSchedule | null>(null);
   const [editingFoodRule, setEditingFoodRule] = useState<FoodRule | null>(null);
+
+  function handleSuccess(nextMessage: string) {
+    setMessage(nextMessage);
+    router.refresh();
+  }
+
+  function handleDelete(action: () => Promise<void>, nextMessage: string) {
+    startTransition(async () => {
+      await action();
+      setMessage(nextMessage);
+      router.refresh();
+    });
+  }
 
   return (
     <div>
@@ -128,7 +143,7 @@ export function ConfigTabs({
             key={editingMedication?.id ?? "new-med"}
             elderId={elderId}
             editing={editingMedication}
-            onSuccess={setMessage}
+            onSuccess={handleSuccess}
             onCancelEdit={() => setEditingMedication(null)}
           />
           <ItemList
@@ -144,11 +159,10 @@ export function ConfigTabs({
             editingId={editingMedication?.id ?? null}
             onEdit={(id) => setEditingMedication(medications.find((m) => m.id === id) ?? null)}
             onDelete={(id) =>
-              startTransition(async () => {
+              handleDelete(async () => {
                 await deleteMedication(id, elderId);
                 if (editingMedication?.id === id) setEditingMedication(null);
-                setMessage("Medicamento eliminado");
-              })
+              }, "Medicamento eliminado")
             }
             pending={pending}
             emptyText="No hay medicamentos registrados todavía."
@@ -164,7 +178,7 @@ export function ConfigTabs({
               elderId={elderId}
               catalog={catalog}
               editing={editingAppointment}
-              onSuccess={setMessage}
+              onSuccess={handleSuccess}
               onCancelEdit={() => setEditingAppointment(null)}
             />
             <AppointmentList
@@ -173,10 +187,10 @@ export function ConfigTabs({
               editingId={editingAppointment?.id ?? null}
               onEdit={setEditingAppointment}
               onNew={() => setEditingAppointment(null)}
-              onMessage={setMessage}
+              onMessage={handleSuccess}
             />
           </div>
-          <MedicalCatalogPanel elderId={elderId} catalog={catalog} onMessage={setMessage} />
+          <MedicalCatalogPanel elderId={elderId} catalog={catalog} onMessage={handleSuccess} />
         </div>
       )}
 
@@ -186,7 +200,7 @@ export function ConfigTabs({
             key={editingRoutine?.id ?? "new-routine"}
             elderId={elderId}
             editing={editingRoutine}
-            onSuccess={setMessage}
+            onSuccess={handleSuccess}
             onCancelEdit={() => setEditingRoutine(null)}
           />
           <ItemList
@@ -208,11 +222,10 @@ export function ConfigTabs({
               setEditingRoutine(routineActivities.find((a) => a.id === id) ?? null)
             }
             onDelete={(id) =>
-              startTransition(async () => {
+              handleDelete(async () => {
                 await deleteRoutineActivity(id, elderId);
                 if (editingRoutine?.id === id) setEditingRoutine(null);
-                setMessage("Actividad eliminada");
-              })
+              }, "Actividad eliminada")
             }
             pending={pending}
             emptyText="No hay actividades de rutina asignadas todavía."
@@ -228,7 +241,7 @@ export function ConfigTabs({
               elderId={elderId}
               existingSchedules={mealSchedules}
               editing={editingMeal}
-              onSuccess={setMessage}
+              onSuccess={handleSuccess}
               onCancelEdit={() => setEditingMeal(null)}
             />
             <ItemList
@@ -248,13 +261,12 @@ export function ConfigTabs({
               }))}
               editingId={editingMeal?.id ?? null}
               onEdit={(id) => setEditingMeal(mealSchedules.find((s) => s.id === id) ?? null)}
-              onDelete={(id) =>
-                startTransition(async () => {
-                  await deleteMealSchedule(id, elderId);
-                  if (editingMeal?.id === id) setEditingMeal(null);
-                  setMessage("Horario de comida eliminado");
-                })
-              }
+            onDelete={(id) =>
+              handleDelete(async () => {
+                await deleteMealSchedule(id, elderId);
+                if (editingMeal?.id === id) setEditingMeal(null);
+              }, "Horario de comida eliminado")
+            }
               pending={pending}
               emptyText="No hay horarios de comida registrados todavía."
             />
@@ -265,7 +277,7 @@ export function ConfigTabs({
               key={editingFoodRule?.id ?? "new-food-rule"}
               elderId={elderId}
               editing={editingFoodRule}
-              onSuccess={setMessage}
+              onSuccess={handleSuccess}
               onCancelEdit={() => setEditingFoodRule(null)}
             />
             <ItemList
@@ -278,11 +290,10 @@ export function ConfigTabs({
               editingId={editingFoodRule?.id ?? null}
               onEdit={(id) => setEditingFoodRule(foodRules.find((f) => f.id === id) ?? null)}
               onDelete={(id) =>
-                startTransition(async () => {
+                handleDelete(async () => {
                   await deleteFoodRule(id, elderId);
                   if (editingFoodRule?.id === id) setEditingFoodRule(null);
-                  setMessage("Regla eliminada");
-                })
+                }, "Regla eliminada")
               }
               pending={pending}
               emptyText="No hay reglas alimenticias registradas."

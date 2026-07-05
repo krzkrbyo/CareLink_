@@ -7,14 +7,14 @@ export async function revalidateElderCarePaths(elderId: string) {
   const { data } = await supabase.from("elders").select("slug").eq("id", elderId).single();
 
   if (data?.slug) {
-    revalidatePath(elderCarePath(data.slug, "dashboard"));
-    revalidatePath(elderCarePath(data.slug, "configuracion"));
-    revalidatePath(elderCarePath(data.slug, "perfil"));
+    const sections = ["dashboard", "configuracion", "perfil"] as const;
+    for (const section of sections) {
+      revalidatePath(elderCarePath(data.slug, section), "page");
+    }
+    revalidatePath(`/cuidador/${data.slug}`, "layout");
   }
 
-  revalidatePath("/cuidador");
-  revalidatePath("/cuidador/resumen");
-  revalidatePath("/cuidador/dashboard");
-  revalidatePath("/cuidador/configuracion");
-  revalidatePath("/adulto");
+  revalidatePath("/cuidador", "layout");
+  revalidatePath("/cuidador/resumen", "page");
+  revalidatePath("/adulto", "layout");
 }

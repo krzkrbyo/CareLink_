@@ -5,6 +5,16 @@ import { getElderWithAvatar } from "@/lib/data/elder-display";
 import { getMedicalCatalog } from "@/app/actions/medical-catalog";
 import { requireElderCarePage } from "@/lib/elders/page-access";
 import { elderCarePath } from "@/lib/elders/routes";
+import { selectOrEmpty } from "@/lib/supabase/safe-query";
+import type {
+  Appointment,
+  FoodRule,
+  MealSchedule,
+  Medication,
+  RoutineActivity,
+} from "@/types/database";
+
+export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage({
   params,
@@ -17,21 +27,29 @@ export default async function ConfiguracionPage({
 
   const elder = await getElderWithAvatar(elderId);
 
-  const [
-    { data: medications },
-    { data: appointments },
-    { data: foodRules },
-    { data: routineActivities },
-    { data: mealSchedules },
-    catalog,
-  ] = await Promise.all([
-    supabase.from("medications").select("*").eq("elder_id", elderId).order("created_at"),
-    supabase.from("appointments").select("*").eq("elder_id", elderId).order("starts_at"),
-    supabase.from("food_rules").select("*").eq("elder_id", elderId).order("created_at"),
-    supabase.from("routine_activities").select("*").eq("elder_id", elderId).order("created_at"),
-    supabase.from("meal_schedules").select("*").eq("elder_id", elderId).order("created_at"),
-    getMedicalCatalog(elderId),
-  ]);
+  const [medications, appointments, foodRules, routineActivities, mealSchedules, catalog] =
+    await Promise.all([
+      selectOrEmpty<Medication>(
+        supabase.from("medications").select("*").eq("elder_id", elderId).order("created_at")
+      ),
+      selectOrEmpty<Appointment>(
+        supabase.from("appointments").select("*").eq("elder_id", elderId).order("starts_at")
+      ),
+      selectOrEmpty<FoodRule>(
+        supabase.from("food_rules").select("*").eq("elder_id", elderId).order("created_at")
+      ),
+      selectOrEmpty<RoutineActivity>(
+        supabase
+          .from("routine_activities")
+          .select("*")
+          .eq("elder_id", elderId)
+          .order("created_at")
+      ),
+      selectOrEmpty<MealSchedule>(
+        supabase.from("meal_schedules").select("*").eq("elder_id", elderId).order("created_at")
+      ),
+      getMedicalCatalog(elderId),
+    ]);
 
   return (
     <div className="p-4 pb-24 lg:p-8 lg:pb-8">
@@ -50,11 +68,11 @@ export default async function ConfiguracionPage({
 
       <ConfigTabs
         elderId={elderId}
-        medications={medications ?? []}
-        appointments={appointments ?? []}
-        foodRules={foodRules ?? []}
-        routineActivities={routineActivities ?? []}
-        mealSchedules={mealSchedules ?? []}
+        medications={medications}
+        appointments={appointments}
+        foodRules={foodRules}
+        routineActivities={routineActivities}
+        mealSchedules={mealSchedules}
         catalog={catalog}
       />
     </div>

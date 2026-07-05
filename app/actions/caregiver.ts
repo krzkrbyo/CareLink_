@@ -87,7 +87,7 @@ export async function createMedication(elderId: string, data: MedicationSchedule
     status: "pending",
   });
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -130,7 +130,7 @@ export async function updateMedication(id: string, elderId: string, data: Medica
     .eq("elder_id", elderId);
 
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -139,7 +139,7 @@ export async function deleteMedication(id: string, elderId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("medications").delete().eq("id", id).eq("elder_id", elderId);
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -196,7 +196,7 @@ export async function createAppointment(elderId: string, data: AppointmentInput)
     });
   }
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true, id: appointment.id };
 }
 
@@ -256,7 +256,7 @@ export async function updateAppointment(id: string, elderId: string, data: Appoi
       .eq("appointment_id", id);
   }
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -290,7 +290,7 @@ export async function updateAppointmentStatus(
       .eq("status", "completed");
   }
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -307,7 +307,7 @@ export async function deleteAppointment(id: string, elderId: string) {
     .eq("elder_id", elderId);
 
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -343,7 +343,7 @@ export async function createRoutineActivity(elderId: string, data: RoutineActivi
 
   await upsertRoutineReminder(supabase, activity);
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true, id: activity.id };
 }
 
@@ -384,7 +384,7 @@ export async function updateRoutineActivity(
     await supabase.from("reminders").delete().eq("routine_activity_id", id).eq("status", "pending");
   }
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -401,7 +401,7 @@ export async function deleteRoutineActivity(id: string, elderId: string) {
     .eq("elder_id", elderId);
 
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -434,7 +434,7 @@ export async function createMealSchedule(elderId: string, data: MealScheduleInpu
 
   await upsertMealReminder(supabase, schedule);
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true, id: schedule.id };
 }
 
@@ -474,7 +474,7 @@ export async function updateMealSchedule(
     await supabase.from("reminders").delete().eq("meal_schedule_id", id).eq("status", "pending");
   }
 
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -491,7 +491,7 @@ export async function deleteMealSchedule(id: string, elderId: string) {
     .eq("elder_id", elderId);
 
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -511,7 +511,7 @@ export async function createFoodRule(elderId: string, data: {
     notes: data.notes,
   });
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -536,7 +536,7 @@ export async function updateFoodRule(
     .eq("id", id)
     .eq("elder_id", elderId);
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -545,7 +545,7 @@ export async function deleteFoodRule(id: string, elderId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("food_rules").delete().eq("id", id).eq("elder_id", elderId);
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -560,7 +560,7 @@ export async function resolveAlert(alertId: string, elderId: string) {
     .eq("id", alertId)
     .eq("elder_id", elderId);
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }
 
@@ -659,6 +659,6 @@ export async function updateElder(elderId: string, data: {
   const supabase = await createClient();
   const { error } = await supabase.from("elders").update(data).eq("id", elderId);
   if (error) throw new Error(error.message);
-  revalidateCaregiver(elderId);
+  await revalidateCaregiver(elderId);
   return { success: true };
 }

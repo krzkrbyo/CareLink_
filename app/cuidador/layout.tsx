@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { requireCaregiver, getCaregiverElders } from "@/lib/auth/session";
 import { AppShell } from "@/components/layout/AppShell";
 
+export const dynamic = "force-dynamic";
+
 export default async function CuidadorLayout({
   children,
 }: {
